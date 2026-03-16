@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String @id
+  name      String
+  logoUrl   String?
+  phone     String?
+  email     String?
+  address   String?
+  sellerInfo String?
+  createdAt String
+  users     User[]
+}
+
+model User {
+  id                String               @id
+  name              String
+  email             String               @unique
+  role              String
+  createdAt         String
+  passwordHash      String
+  passwordSalt      String
+  companyId         String?
+  company           Organization?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  quotes            Quote[]
+  addressBook       AddressBookEntry[]
+  senderAddressBook SenderAddressBookEntry[]
+  companies         CompanyDirectoryEntry[]
+  sessions          Session[]
+}
+
+model Quote {
+  id          String @id
+  ownerUserId String
+  data        String
+  createdAt   String
+  updatedAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model AddressBookEntry {
+  id          String @id
+  ownerUserId String
+  label       String
+  data        String
+  createdAt   String
+  updatedAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model SenderAddressBookEntry {
+  id          String @id
+  ownerUserId String
+  label       String
+  data        String
+  createdAt   String
+  updatedAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model CompanyDirectoryEntry {
+  id          String @id
+  ownerUserId String
+  data        String
+  createdAt   String
+  updatedAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  token      String @id
+  userId     String
+  createdAt  String
+  lastSeenAt String
+  user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

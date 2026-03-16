@@ -1,0 +1,14 @@
+{
+  "users": [
+    {
+      "id": "8cacd00d-a4ea-4f14-bebe-75488af37435",
+      "name": "Yonetici",
+      "email": "admin@balabanbilgisayar.local",
+      "role": "admin",
+      "createdAt": "2026-03-16T12:19:49.032Z",
+      "passwordHash": "c19c0849cb689179a6cb4d4512c56dea2feb38d256996b000d1bc5107843a4c5f20d87d2281edee06419ad78804b3fe89d167dfa24b9b3d9eed6d7025cd0274c",
+      "passwordSalt": "9d756879-8ad1-4e32-a258-11505d2c425c"
+    }
+  ],
+  "quotes": []
+}
