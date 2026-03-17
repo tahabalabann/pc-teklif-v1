@@ -1,4 +1,4 @@
-import type { Quote } from "../../types/quote";
+import type { PrintTemplateMode, Quote } from "../../types/quote";
 import { formatDisplayDate } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { calculateGrandTotal, calculatePartsTotal } from "../../utils/quote";
@@ -6,21 +6,33 @@ import { calculateGrandTotal, calculatePartsTotal } from "../../utils/quote";
 interface PrintQuoteDocumentProps {
   quote: Quote;
   showItemPrices: boolean;
+  printTemplate: PrintTemplateMode;
 }
 
-export function PrintQuoteDocument({ quote, showItemPrices }: PrintQuoteDocumentProps) {
+export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: PrintQuoteDocumentProps) {
   const visibleRows = quote.rows.filter((row) => row.product || row.description || row.salePrice > 0);
   const partsTotal = calculatePartsTotal(quote.rows);
   const grandTotal = calculateGrandTotal(quote);
+  const onlyProducts = printTemplate === "products";
+  const shippingFocused = printTemplate === "shipping";
+  const proforma = printTemplate === "proforma";
+  const shouldShowPrices = showItemPrices && printTemplate !== "products";
 
   return (
     <section className="print-document">
       <header className="print-header">
         <div>
-          <p className="print-eyebrow">Bilgisayar Sistem Teklifi</p>
+          <p className="print-eyebrow">
+            {proforma ? "Resmi Proforma Teklif" : shippingFocused ? "Kargo Dahil Teklif" : "Bilgisayar Sistem Teklifi"}
+          </p>
           <h1 className="print-title">{quote.companyName || "PC Teklif Sistemi"}</h1>
-          <p className="print-muted whitespace-pre-line">{quote.sellerInfo || "İletişim bilgisi eklenmedi."}</p>
+          {!onlyProducts && (
+            <p className="print-muted whitespace-pre-line">
+              {quote.sellerInfo || "İletişim bilgisi eklenmedi."}
+            </p>
+          )}
         </div>
+
         <div className="print-meta-card">
           <div className="print-meta-row">
             <span>Teklif No</span>
@@ -63,8 +75,10 @@ export function PrintQuoteDocument({ quote, showItemPrices }: PrintQuoteDocument
 
       <section className="print-section">
         <div className="print-section-head">
-          <h2>Sistem Parçaları</h2>
-          <span>{showItemPrices ? `${visibleRows.length} kalem` : "Toplu fiyat görünümü"}</span>
+          <h2>{onlyProducts ? "Ürün Listesi" : "Sistem Parçaları"}</h2>
+          <span>
+            {shouldShowPrices ? `${visibleRows.length} kalem` : onlyProducts ? "Sade görünüm" : "Toplu fiyat görünümü"}
+          </span>
         </div>
 
         <table className="print-table">
@@ -73,13 +87,13 @@ export function PrintQuoteDocument({ quote, showItemPrices }: PrintQuoteDocument
               <th>Kategori</th>
               <th>Ürün / Model</th>
               <th>Açıklama</th>
-              {showItemPrices && <th className="text-right">Fiyat</th>}
+              {shouldShowPrices && <th className="text-right">Fiyat</th>}
             </tr>
           </thead>
           <tbody>
             {visibleRows.length === 0 ? (
               <tr>
-                <td colSpan={showItemPrices ? 4 : 3} className="print-empty">
+                <td colSpan={shouldShowPrices ? 4 : 3} className="print-empty">
                   Henüz sistem parçası eklenmedi.
                 </td>
               </tr>
@@ -89,7 +103,7 @@ export function PrintQuoteDocument({ quote, showItemPrices }: PrintQuoteDocument
                   <td>{row.category}</td>
                   <td>{row.product || "-"}</td>
                   <td>{row.description || "-"}</td>
-                  {showItemPrices && <td className="text-right font-semibold">{formatCurrency(row.salePrice)}</td>}
+                  {shouldShowPrices && <td className="text-right font-semibold">{formatCurrency(row.salePrice)}</td>}
                 </tr>
               ))
             )}
@@ -97,63 +111,73 @@ export function PrintQuoteDocument({ quote, showItemPrices }: PrintQuoteDocument
         </table>
       </section>
 
-      <section className="print-grid">
-        <div className="print-note-card">
-          <h3>Notlar</h3>
-          <p>{quote.notes || "Belirtilmiş ek not bulunmuyor."}</p>
-          <h3>Garanti / Test</h3>
-          <p>{quote.warrantyInfo || "Bilgi girilmedi."}</p>
-          {quote.geliverShipment && (
-            <>
-              <h3>Kargo Bilgisi</h3>
-              <p>
-                {quote.geliverShipment.providerName
-                  ? `${quote.geliverShipment.providerName} / ${quote.geliverShipment.providerServiceCode}`
-                  : "Geliver gönderisi oluşturuldu."}
-                {"\n"}
-                {quote.geliverShipment.agreementText || "Anlaşma bilgisi bulunmuyor."}
-                {"\n"}Takip No: {quote.geliverShipment.trackingNumber || "-"}
-                {"\n"}Barkod No: {quote.geliverShipment.barcode || "-"}
-              </p>
-            </>
-          )}
-        </div>
+      {!onlyProducts && (
+        <section className="print-grid">
+          <div className="print-note-card">
+            {!shippingFocused && (
+              <>
+                <h3>Notlar</h3>
+                <p>{quote.notes || "Belirtilmiş ek not bulunmuyor."}</p>
+                <h3>Garanti / Test</h3>
+                <p>{quote.warrantyInfo || "Bilgi girilmedi."}</p>
+              </>
+            )}
+            {quote.geliverShipment && (
+              <>
+                <h3>Kargo Bilgisi</h3>
+                <p>
+                  {quote.geliverShipment.providerName
+                    ? `${quote.geliverShipment.providerName} / ${quote.geliverShipment.providerServiceCode}`
+                    : "Geliver gönderisi oluşturuldu."}
+                  {"\n"}
+                  {quote.geliverShipment.agreementText || "Anlaşma bilgisi bulunmuyor."}
+                  {"\n"}Takip No: {quote.geliverShipment.trackingNumber || "-"}
+                  {"\n"}Barkod No: {quote.geliverShipment.barcode || "-"}
+                </p>
+              </>
+            )}
+          </div>
 
-        <div className="print-summary-card">
-          <div className="print-summary-row">
-            <span>Parça Toplamı</span>
-            <strong>{formatCurrency(partsTotal)}</strong>
-          </div>
-          <div className="print-summary-row">
-            <span>İşçilik / Montaj</span>
-            <strong>{formatCurrency(quote.labor)}</strong>
-          </div>
-          <div className="print-summary-row">
-            <span>Kargo</span>
-            <strong>{formatCurrency(quote.shipping)}</strong>
-          </div>
-          <div className="print-summary-row">
-            <span>İndirim</span>
-            <strong>-{formatCurrency(quote.discount)}</strong>
-          </div>
-          <div className="print-summary-total">
-            <span>Genel Toplam</span>
-            <strong>{formatCurrency(grandTotal)}</strong>
-          </div>
-          {quote.cashPrice > 0 && (
-            <div className="print-summary-row print-summary-secondary">
-              <span>Nakit Fiyat</span>
-              <strong>{formatCurrency(quote.cashPrice)}</strong>
+          <div className="print-summary-card">
+            <div className="print-summary-row">
+              <span>Parça Toplamı</span>
+              <strong>{formatCurrency(partsTotal)}</strong>
             </div>
-          )}
-          {quote.tradePrice > 0 && (
-            <div className="print-summary-row print-summary-secondary">
-              <span>Takas Fiyatı</span>
-              <strong>{formatCurrency(quote.tradePrice)}</strong>
+            {!onlyProducts && (
+              <>
+                <div className="print-summary-row">
+                  <span>İşçilik / Montaj</span>
+                  <strong>{formatCurrency(quote.labor)}</strong>
+                </div>
+                <div className="print-summary-row">
+                  <span>Kargo</span>
+                  <strong>{formatCurrency(quote.shipping)}</strong>
+                </div>
+                <div className="print-summary-row">
+                  <span>İndirim</span>
+                  <strong>-{formatCurrency(quote.discount)}</strong>
+                </div>
+              </>
+            )}
+            <div className="print-summary-total">
+              <span>{onlyProducts ? "Parça Genel Toplamı" : "Genel Toplam"}</span>
+              <strong>{formatCurrency(grandTotal)}</strong>
             </div>
-          )}
-        </div>
-      </section>
+            {quote.cashPrice > 0 && (
+              <div className="print-summary-row print-summary-secondary">
+                <span>Nakit Fiyat</span>
+                <strong>{formatCurrency(quote.cashPrice)}</strong>
+              </div>
+            )}
+            {quote.tradePrice > 0 && (
+              <div className="print-summary-row print-summary-secondary">
+                <span>Takas Fiyatı</span>
+                <strong>{formatCurrency(quote.tradePrice)}</strong>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <footer className="print-footer">
         <span>Bu belge otomatik olarak teklif sistemi üzerinden oluşturuldu.</span>

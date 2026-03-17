@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Quote, QuoteTemplate } from "../../types/quote";
+import type { PrintTemplateMode, Quote, QuoteTemplate } from "../../types/quote";
 import { PricingSummary } from "../pricing/PricingSummary";
 import { CustomerPreview } from "../quote/CustomerPreview";
 import { PartsEditorTable } from "../quote/PartsEditorTable";
@@ -13,7 +13,9 @@ interface QuoteWorkspacePageProps {
   activeQuote: Quote;
   templates: QuoteTemplate[];
   showItemPricesInPrint: boolean;
+  printTemplate: PrintTemplateMode;
   onShowItemPricesChange: (checked: boolean) => void;
+  onPrintTemplateChange: (template: PrintTemplateMode) => void;
   onPatchQuote: (patch: Partial<Quote>) => void;
   onSaveQuote: () => void | Promise<void>;
   onDuplicateActive: () => void;
@@ -29,7 +31,9 @@ export function QuoteWorkspacePage({
   activeQuote,
   templates,
   showItemPricesInPrint,
+  printTemplate,
   onShowItemPricesChange,
+  onPrintTemplateChange,
   onPatchQuote,
   onSaveQuote,
   onDuplicateActive,
@@ -84,6 +88,16 @@ export function QuoteWorkspacePage({
             />
             <span>PDF'de parça fiyatlarını tek tek göster</span>
           </label>
+          <select
+            className="field min-w-[220px]"
+            value={printTemplate}
+            onChange={(event) => onPrintTemplateChange(event.target.value as PrintTemplateMode)}
+          >
+            <option value="standard">Standart Teklif</option>
+            <option value="proforma">Resmi Proforma</option>
+            <option value="products">Sadece Ürün Listesi</option>
+            <option value="shipping">Kargo Dahil Teklif</option>
+          </select>
           <Button onClick={() => void onSaveQuote()} type="button" variant="primary">
             Teklifi Kaydet
           </Button>

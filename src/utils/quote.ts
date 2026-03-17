@@ -66,7 +66,6 @@ const defaultParcel = (): GeliverParcel => ({
 });
 
 export const generateId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
 export const getToday = () => new Date().toISOString().slice(0, 10);
 
 const createEmptyRow = (category: string): QuoteRow => ({
@@ -228,7 +227,8 @@ export const sanitizeQuote = (input: Quote): Quote => {
   };
 };
 
-export const calculatePartsTotal = (rows: QuoteRow[]) => rows.reduce((sum, row) => sum + sanitizeNumber(row.salePrice), 0);
+export const calculatePartsTotal = (rows: QuoteRow[]) =>
+  rows.reduce((sum, row) => sum + sanitizeNumber(row.salePrice), 0);
 
 export const calculatePartsCostTotal = (rows: QuoteRow[]) =>
   rows.reduce((sum, row) => sum + sanitizeNumber(row.purchasePrice), 0);
@@ -244,13 +244,15 @@ export const calculateEstimatedProfit = (quote: Quote) =>
 
 export const cloneQuote = (quote: Quote): Quote => {
   const now = new Date().toISOString();
+  const safeQuote = sanitizeQuote(quote);
+
   return {
-    ...sanitizeQuote(quote),
+    ...safeQuote,
     id: generateId(),
     quoteNo: nextQuoteNumber(),
     createdAt: now,
     updatedAt: now,
-    rows: sanitizeQuote(quote).rows.map((row) => ({
+    rows: safeQuote.rows.map((row) => ({
       ...row,
       id: generateId(),
     })),

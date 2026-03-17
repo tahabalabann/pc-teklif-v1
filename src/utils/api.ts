@@ -3,6 +3,8 @@ import type {
   AuthSession,
   CompanyRecord,
   CompanySettings,
+  CompanyReportSummary,
+  DashboardSummary,
   GeliverProviderService,
   LocationOption,
   Quote,
@@ -11,7 +13,9 @@ import type {
   WalletSummary,
   DepositRequest,
   AppNotification,
+  AuditLogEntry,
   OrganizationSummary,
+  WalletLedgerEntry,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -72,7 +76,7 @@ export const authApi = {
 
 export const usersApi = {
   list: async () => (await apiRequest<{ users: AppUser[] }>("/api/users")).users,
-  create: async (payload: { name: string; email: string; password: string; role: "admin" | "staff" }) =>
+  create: async (payload: { name: string; email: string; password: string; role: AppUser["role"] }) =>
     (
       await apiRequest<{ user: AppUser }>("/api/users", {
         method: "POST",
@@ -82,6 +86,13 @@ export const usersApi = {
   delete: async (userId: string) => {
     await apiRequest<{ ok: true }>(`/api/users/${userId}`, { method: "DELETE" });
   },
+  toggleActive: async (userId: string, isActive: boolean) =>
+    (
+      await apiRequest<{ user: AppUser }>(`/api/users/${userId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ isActive }),
+      })
+    ).user,
 };
 
 export const settingsApi = {
@@ -231,4 +242,44 @@ export const organizationsApi = {
         body: JSON.stringify(payload),
       })
     ).organization,
+  listUsers: async (organizationId: string) =>
+    (
+      await apiRequest<{ users: AppUser[] }>(`/api/platform/organizations/${organizationId}/users`)
+    ).users,
+  update: async (
+    organizationId: string,
+    payload: { companyName: string; phone?: string; email?: string; address?: string; notes?: string },
+  ) =>
+    (
+      await apiRequest<{ organization: OrganizationSummary }>(`/api/platform/organizations/${organizationId}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      })
+    ).organization,
+  delete: async (organizationId: string) => {
+    await apiRequest<{ ok: true }>(`/api/platform/organizations/${organizationId}`, { method: "DELETE" });
+  },
+  toggleActive: async (organizationId: string, isActive: boolean) =>
+    (
+      await apiRequest<{ organization: OrganizationSummary }>(`/api/platform/organizations/${organizationId}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ isActive }),
+      })
+    ).organization,
+};
+
+export const reportsApi = {
+  dashboard: async () => (await apiRequest<{ summary: DashboardSummary }>("/api/reports/dashboard")).summary,
+  companies: async () =>
+    (await apiRequest<{ reports: CompanyReportSummary[] }>("/api/reports/companies")).reports,
+  auditLogs: async () => (await apiRequest<{ logs: AuditLogEntry[] }>("/api/reports/audit-logs")).logs,
+  walletLedger: async () =>
+    (await apiRequest<{ entries: WalletLedgerEntry[] }>("/api/reports/wallet-ledger")).entries,
+  manualWalletAdjustment: async (payload: { userId: string; amount: number; note: string }) =>
+    (
+      await apiRequest<{ balance: number }>("/api/reports/wallet-ledger/manual-adjustment", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+    ).balance,
 };

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 export type AppRoute =
+  | "dashboard"
   | "quotes"
   | "quote-detail"
   | "shipping"
@@ -11,6 +12,7 @@ export type AppRoute =
 
 const validRoutes: AppRoute[] = [
   "quotes",
+  "dashboard",
   "quote-detail",
   "shipping",
   "companies",

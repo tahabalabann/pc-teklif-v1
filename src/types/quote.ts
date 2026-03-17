@@ -124,17 +124,19 @@ export interface QuoteTemplate {
 }
 
 export type AppMode = "admin" | "customer";
+export type PrintTemplateMode = "standard" | "proforma" | "products" | "shipping";
 
 export interface AppUser {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "staff";
+  role: "admin" | "staff" | "accounting" | "operations" | "shipping" | "sales";
   createdAt: string;
   companyId: string;
   companyName: string;
   balance: number;
   isPlatformAdmin: boolean;
+  isActive?: boolean;
 }
 
 export interface AuthSession {
@@ -152,6 +154,8 @@ export interface CompanySettings {
   sellerInfo: string;
   paymentAccountName: string;
   paymentIban: string;
+  notes?: string;
+  isActive?: boolean;
   createdAt: string;
 }
 
@@ -210,7 +214,67 @@ export interface CompanyRecord {
 export interface OrganizationSummary {
   id: string;
   companyName: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  notes?: string;
   createdAt: string;
   userCount: number;
   adminCount: number;
+  isActive?: boolean;
+}
+
+export type WalletLedgerType =
+  | "deposit_request"
+  | "deposit_approved"
+  | "shipping_charge"
+  | "manual_credit"
+  | "manual_debit";
+
+export interface WalletLedgerEntry {
+  id: string;
+  userId: string;
+  userName: string;
+  companyId: string;
+  companyName: string;
+  type: WalletLedgerType;
+  amount: number;
+  balanceAfter: number;
+  note: string;
+  createdAt: string;
+  createdByUserId: string;
+  createdByName: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  companyId: string;
+  companyName: string;
+  actorUserId: string;
+  actorName: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  message: string;
+  createdAt: string;
+}
+
+export interface DashboardSummary {
+  todayQuotes: number;
+  todayShipments: number;
+  pendingDepositRequests: number;
+  lowBalanceUsers: number;
+}
+
+export interface CompanyReportSummary {
+  companyId: string;
+  companyName: string;
+  totalQuotes: number;
+  totalShipments: number;
+  totalShippingCost: number;
+  averageShippingCost: number;
+  totalDeposits: number;
+  totalProfit: number;
+  userCount: number;
+  active: boolean;
 }

@@ -5,12 +5,15 @@ import { turkeyCities } from "./turkeyCities.js";
 import {
   authenticateUser,
   createOrganizationWithAdmin,
+  createShipmentAuditLogForUser,
   createSessionForUser,
   createUser,
   createDepositRequestForUser,
+  createManualWalletAdjustment,
   consumeUserBalance,
   deleteAddressBookEntryForUser,
   deleteCompanyForUser,
+  deleteOrganizationAsPlatformAdmin,
   deleteQuoteForUser,
   deleteShipmentRecordForUser,
   deleteSenderAddressBookEntryForUser,
@@ -18,15 +21,20 @@ import {
   deleteSession,
   disconnectStore,
   ensureSeedAdmin,
+  getCompanyReportsForUser,
+  getDashboardSummaryForUser,
   getWalletSummaryForUser,
   getOrganizationForUser,
   getSessionUser,
   approveDepositRequestForUser,
+  listAuditLogsForUser,
   listNotificationsForUser,
   listAddressBookForUser,
   listCompaniesForUser,
   listDepositRequestsForUser,
   listOrganizationsForPlatformAdmin,
+  listUsersForOrganizationAsPlatformAdmin,
+  listWalletLedgerForUser,
   listQuotesForUser,
   listShipmentRecordsForUser,
   listSenderAddressBookForUser,
@@ -38,6 +46,9 @@ import {
   saveQuoteForUser,
   saveShipmentRecordForUser,
   saveSenderAddressBookEntryForUser,
+  toggleOrganizationActiveAsPlatformAdmin,
+  toggleUserActiveForAdmin,
+  updateOrganizationAsPlatformAdmin,
   updateOrganizationForUser,
 } from "./store.js";
 
@@ -125,6 +136,7 @@ app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
       password,
       role,
       companyId: req.user.companyId,
+      actorUser: req.user,
     });
 
     return res.status(201).json({ user });
@@ -146,6 +158,17 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
+app.put("/api/users/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const user = await toggleUserActiveForAdmin(req.user, req.params.id, Boolean(req.body?.isActive));
+    return res.json({ user });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Kullanıcı durumu güncellenemedi.",
+    });
+  }
+});
+
 app.get("/api/platform/organizations", requireAuth, requirePlatformAdmin, async (_req, res) => {
   res.json({ organizations: await listOrganizationsForPlatformAdmin() });
 });
@@ -163,6 +186,112 @@ app.post("/api/platform/organizations", requireAuth, requirePlatformAdmin, async
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Firma oluşturulamadı.",
+    });
+  }
+});
+
+app.get("/api/platform/organizations/:id/users", requireAuth, requirePlatformAdmin, async (req, res) => {
+  try {
+    const users = await listUsersForOrganizationAsPlatformAdmin(req.params.id);
+    return res.json({ users });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma kullanıcıları alınamadı.",
+    });
+  }
+});
+
+app.put("/api/platform/organizations/:id", requireAuth, requirePlatformAdmin, async (req, res) => {
+  try {
+    const organization = await updateOrganizationAsPlatformAdmin(req.params.id, req.body || {});
+    return res.json({ organization });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma güncellenemedi.",
+    });
+  }
+});
+
+app.delete("/api/platform/organizations/:id", requireAuth, requirePlatformAdmin, async (req, res) => {
+  try {
+    await deleteOrganizationAsPlatformAdmin(req.params.id);
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma silinemedi.",
+    });
+  }
+});
+
+app.put("/api/platform/organizations/:id/status", requireAuth, requirePlatformAdmin, async (req, res) => {
+  try {
+    const organization = await toggleOrganizationActiveAsPlatformAdmin(
+      req.params.id,
+      Boolean(req.body?.isActive),
+    );
+    return res.json({ organization });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma durumu güncellenemedi.",
+    });
+  }
+});
+
+app.get("/api/reports/dashboard", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const summary = await getDashboardSummaryForUser(req.user);
+    return res.json({ summary });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Dashboard özeti alınamadı.",
+    });
+  }
+});
+
+app.get("/api/reports/companies", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const reports = await getCompanyReportsForUser(req.user);
+    return res.json({ reports });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma raporları alınamadı.",
+    });
+  }
+});
+
+app.get("/api/reports/audit-logs", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const logs = await listAuditLogsForUser(req.user);
+    return res.json({ logs });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Hareket geçmişi alınamadı.",
+    });
+  }
+});
+
+app.get("/api/reports/wallet-ledger", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const entries = await listWalletLedgerForUser(req.user);
+    return res.json({ entries });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye hareketleri alınamadı.",
+    });
+  }
+});
+
+app.post("/api/reports/wallet-ledger/manual-adjustment", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const balance = await createManualWalletAdjustment(req.user, {
+      userId: req.body?.userId,
+      amount: req.body?.amount,
+      note: req.body?.note,
+    });
+    return res.json({ balance });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Manuel bakiye işlemi yapılamadı.",
     });
   }
 });
@@ -490,6 +619,8 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
     if (req.user.role !== "admin") {
       await consumeUserBalance(req.user.id, shipment.shipmentPrice || estimatedPrice);
     }
+
+    await createShipmentAuditLogForUser(req.user, quote.quoteNo || quote.id || "", shipment);
 
     return res.json({ shipment });
   } catch (error) {

@@ -4,6 +4,7 @@ import { AppSectionNav } from "./components/layout/AppSectionNav";
 import { Header } from "./components/layout/Header";
 import { AccountingPage } from "./components/pages/AccountingPage";
 import { CompaniesPage } from "./components/pages/CompaniesPage";
+import { DashboardPage } from "./components/pages/DashboardPage";
 import { PlatformAdminPage } from "./components/pages/PlatformAdminPage";
 import { QuoteListPage } from "./components/pages/QuoteListPage";
 import { QuoteWorkspacePage } from "./components/pages/QuoteWorkspacePage";
@@ -13,17 +14,38 @@ import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { defaultTemplates } from "./data/templates";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { useLocalStorage } from "./hooks/useLocalStorage";
-import type { AppNotification, AppUser, AuthSession, CompanyRecord, CompanySettings, Quote } from "./types/quote";
+import type {
+  AppNotification,
+  AppUser,
+  AuthSession,
+  CompanyRecord,
+  CompanySettings,
+  PrintTemplateMode,
+  Quote,
+} from "./types/quote";
 import { authApi, notificationsApi, quotesApi, sessionStorageApi, settingsApi } from "./utils/api";
 import { formatDateTime } from "./utils/date";
 import { cloneQuote, createEmptyQuote, sanitizeQuote, touchQuote } from "./utils/quote";
 
+const roleRouteAccess: Record<AppUser["role"], Array<"dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings">> = {
+  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "accounting", "settings"],
+  accounting: ["dashboard", "companies", "accounting"],
+  operations: ["dashboard", "quotes", "quote-detail", "shipping", "companies"],
+  shipping: ["shipping", "companies"],
+  sales: ["quotes", "quote-detail", "companies"],
+  staff: ["quotes", "quote-detail", "shipping", "companies"],
+};
+
 function App() {
-  const { route, setRoute } = useHashRoute("quotes");
+  const { route, setRoute } = useHashRoute("dashboard");
   const [theme, setTheme] = useLocalStorage<"light" | "dark">("pc-teklif:theme", "light");
   const [showItemPricesInPrint, setShowItemPricesInPrint] = useLocalStorage<boolean>(
     "pc-teklif:showItemPricesInPrint",
     true,
+  );
+  const [printTemplate, setPrintTemplate] = useLocalStorage<PrintTemplateMode>(
+    "pc-teklif:printTemplate",
+    "standard",
   );
   const [session, setSession] = useState<AuthSession | null>(null);
   const [savedQuotes, setSavedQuotes] = useState<Quote[]>([]);
@@ -65,6 +87,25 @@ function App() {
     hasHydratedQuoteRef.current = false;
     void loadQuotes(session.user);
   }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    if (!canAccessRoute(session.user, route === "platform" ? "settings" : route === "quote-detail" ? "quote-detail" : route)) {
+      setRoute("quotes");
+      return;
+    }
+
+    if (route === "dashboard" && !canAccessRoute(session.user, "dashboard")) {
+      setRoute("quotes");
+    }
+
+    if (route === "platform" && !session.user.isPlatformAdmin) {
+      setRoute(session.user.role === "admin" ? "settings" : "quotes");
+    }
+  }, [route, session, setRoute]);
 
   useEffect(() => {
     if (!session) {
@@ -420,12 +461,14 @@ function App() {
         <div className="mt-6 space-y-6">
           <AppSectionNav
             currentRoute={route}
-            isAdmin={session.user.role === "admin"}
+            currentUserRole={session.user.role}
             isPlatformAdmin={session.user.isPlatformAdmin}
             onRouteChange={setRoute}
           />
 
-          {route === "quotes" && (
+          {route === "dashboard" && canAccessRoute(session.user, "dashboard") && <DashboardPage />}
+
+          {route === "quotes" && canAccessRoute(session.user, "quotes") && (
             <QuoteListPage
               activeQuote={activeQuote}
               onDeleteQuote={(id) => void handleDeleteQuote(id)}
@@ -437,7 +480,7 @@ function App() {
             />
           )}
 
-          {route === "quote-detail" && (
+          {route === "quote-detail" && canAccessRoute(session.user, "quote-detail") && (
             <QuoteWorkspacePage
               activeQuote={activeQuote}
               onApplyTemplate={handleApplyTemplate}
@@ -445,9 +488,11 @@ function App() {
               onDuplicateActive={handleDuplicateActive}
               onNewQuote={handleNewQuote}
               onPatchQuote={patchQuote}
+              onPrintTemplateChange={setPrintTemplate}
               onResetQuote={handleResetQuote}
               onSaveQuote={() => void handleSaveQuote()}
               onShowItemPricesChange={setShowItemPricesInPrint}
+              printTemplate={printTemplate}
               saveStatusText={saveStatusText}
               saveStatusTone={autoSaveState === "error" ? "error" : "normal"}
               showItemPricesInPrint={showItemPricesInPrint}
@@ -455,7 +500,7 @@ function App() {
             />
           )}
 
-          {route === "shipping" && (
+          {route === "shipping" && canAccessRoute(session.user, "shipping") && (
             <ShippingPage
               activeQuote={activeQuote}
               companySettings={companySettings}
@@ -471,7 +516,7 @@ function App() {
             />
           )}
 
-          {route === "companies" && (
+          {route === "companies" && canAccessRoute(session.user, "companies") && (
             <CompaniesPage
               quote={activeQuote}
               quotes={normalizedSavedQuotes}
@@ -483,7 +528,7 @@ function App() {
             />
           )}
 
-          {route === "accounting" && session.user.role === "admin" && (
+          {route === "accounting" && canAccessRoute(session.user, "accounting") && (
             <AccountingPage
               currentQuoteId={activeQuote.id}
               onDeleteQuote={(id) => void handleDeleteQuote(id)}
@@ -493,7 +538,7 @@ function App() {
             />
           )}
 
-          {route === "settings" && session.user.role === "admin" && (
+          {route === "settings" && canAccessRoute(session.user, "settings") && (
             <SettingsPage
               currentUser={session.user}
               onCompanySaved={handleCompanySettingsSaved}
@@ -509,7 +554,11 @@ function App() {
       </div>
 
       <div className="print-only">
-        <PrintQuoteDocument quote={activeQuote} showItemPrices={showItemPricesInPrint} />
+        <PrintQuoteDocument
+          printTemplate={printTemplate}
+          quote={activeQuote}
+          showItemPrices={showItemPricesInPrint}
+        />
       </div>
     </div>
   );
@@ -539,6 +588,13 @@ function applyCompanyDefaults(baseQuote: Quote, user: AppUser, companySettings: 
     companyLogo: companySettings?.logoUrl || baseQuote.companyLogo,
     sellerInfo: companySettings?.sellerInfo || baseQuote.sellerInfo,
   });
+}
+
+function canAccessRoute(
+  user: AppUser,
+  route: "dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings",
+) {
+  return roleRouteAccess[user.role].includes(route);
 }
 
 export default App;

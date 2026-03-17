@@ -1,9 +1,10 @@
+import type { AppUser } from "../../types/quote";
 import type { AppRoute } from "../../hooks/useHashRoute";
 
 interface AppSectionNavProps {
   currentRoute: AppRoute;
   onRouteChange: (route: AppRoute) => void;
-  isAdmin: boolean;
+  currentUserRole: AppUser["role"];
   isPlatformAdmin?: boolean;
 }
 
@@ -11,41 +12,50 @@ const routes: Array<{
   id: AppRoute;
   label: string;
   description: string;
-  adminOnly?: boolean;
+  allowedRoles: AppUser["role"][];
   platformOnly?: boolean;
 }> = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    description: "Hızlı özet ve yönetim raporları",
+    allowedRoles: ["admin", "accounting", "operations"],
+  },
   {
     id: "quotes",
     label: "Teklifler",
     description: "Teklif oluşturma ve müşteri görünümü",
+    allowedRoles: ["admin", "staff", "operations", "sales"],
   },
   {
     id: "shipping",
     label: "Kargo",
     description: "Geliver gönderi akışı ve etiketler",
+    allowedRoles: ["admin", "staff", "operations", "shipping"],
   },
   {
     id: "companies",
     label: "Firmalar",
     description: "Firma ve müşteri kayıtları",
+    allowedRoles: ["admin", "staff", "operations", "sales", "shipping", "accounting"],
   },
   {
     id: "accounting",
     label: "Muhasebe",
-    description: "Aylık ve toplam kar özeti",
-    adminOnly: true,
+    description: "Aylık ve toplam kâr özeti",
+    allowedRoles: ["admin", "accounting"],
   },
   {
     id: "settings",
     label: "Ayarlar",
     description: "Firma profili ve firma içi kullanıcılar",
-    adminOnly: true,
+    allowedRoles: ["admin"],
   },
   {
     id: "platform",
     label: "Site Yönetimi",
     description: "Yeni firma açma ve platform yönetimi",
-    adminOnly: true,
+    allowedRoles: ["admin"],
     platformOnly: true,
   },
 ];
@@ -53,7 +63,7 @@ const routes: Array<{
 export function AppSectionNav({
   currentRoute,
   onRouteChange,
-  isAdmin,
+  currentUserRole,
   isPlatformAdmin = false,
 }: AppSectionNavProps) {
   return (
@@ -65,7 +75,7 @@ export function AppSectionNav({
               return isPlatformAdmin;
             }
 
-            return !route.adminOnly || isAdmin;
+            return route.allowedRoles.includes(currentUserRole);
           })
           .map((route) => {
             const active = currentRoute === route.id;

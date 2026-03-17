@@ -1,5 +1,6 @@
-import type { ChangeEvent, ReactNode } from "react";
+import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import type { QuoteRow } from "../../types/quote";
+import { partsCatalog } from "../../data/partsCatalog";
 import { DEFAULT_ROW_CATEGORIES, generateId, sanitizeNumber } from "../../utils/quote";
 import { formatCurrency, formatInputNumber } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -11,6 +12,12 @@ interface PartsEditorTableProps {
 }
 
 export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
+  const [catalogItemId, setCatalogItemId] = useState(partsCatalog[0]?.id || "");
+  const selectedCatalogItem = useMemo(
+    () => partsCatalog.find((item) => item.id === catalogItemId) || null,
+    [catalogItemId],
+  );
+
   const updateRow = (id: string, field: keyof QuoteRow, value: string | number) => {
     onChange(
       rows.map((row) =>
@@ -57,6 +64,43 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
       },
     ]);
 
+  const addCatalogItem = () => {
+    if (!selectedCatalogItem) {
+      return;
+    }
+
+    const firstEmptyRow = rows.find((row) => !row.product && !row.description && row.salePrice <= 0);
+    if (firstEmptyRow) {
+      onChange(
+        rows.map((row) =>
+          row.id === firstEmptyRow.id
+            ? {
+                ...row,
+                category: selectedCatalogItem.category,
+                product: selectedCatalogItem.product,
+                description: selectedCatalogItem.description,
+                purchasePrice: selectedCatalogItem.purchasePrice,
+                salePrice: selectedCatalogItem.salePrice,
+              }
+            : row,
+        ),
+      );
+      return;
+    }
+
+    onChange([
+      ...rows,
+      {
+        id: generateId(),
+        category: selectedCatalogItem.category,
+        product: selectedCatalogItem.product,
+        description: selectedCatalogItem.description,
+        purchasePrice: selectedCatalogItem.purchasePrice,
+        salePrice: selectedCatalogItem.salePrice,
+      },
+    ]);
+  };
+
   return (
     <Card className="overflow-hidden">
       <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
@@ -66,9 +110,29 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             {"Tab ile h\u0131zl\u0131 ilerleyin, gerekirse sat\u0131r ekleyin ve s\u0131ra de\u011fi\u015ftirin."}
           </p>
         </div>
-        <Button onClick={addRow} type="button" variant="primary">
-          {"Sat\u0131r Ekle"}
-        </Button>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <select className="field min-w-[250px]" value={catalogItemId} onChange={(event) => setCatalogItemId(event.target.value)}>
+              {partsCatalog.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.category} - {item.product}
+                </option>
+              ))}
+            </select>
+            <Button onClick={addCatalogItem} type="button" variant="secondary">
+              Katalogdan Ekle
+            </Button>
+            <Button onClick={addRow} type="button" variant="primary">
+              {"Sat\u0131r Ekle"}
+            </Button>
+          </div>
+          {selectedCatalogItem && (
+            <p className="text-xs text-ink-500">
+              {selectedCatalogItem.lastPurchaseNote || formatCurrency(selectedCatalogItem.purchasePrice)} •{" "}
+              {selectedCatalogItem.lastSaleNote || formatCurrency(selectedCatalogItem.salePrice)}
+            </p>
+          )}
+        </div>
       </div>
 
       {rows.length === 0 ? (
