@@ -1331,67 +1331,85 @@ export async function approveDepositRequestForUser(user, requestId) {
   if (!request) {
     throw new Error("Bakiye talebi bulunamadı.");
   }
-  if (request.status !== "pending") {
-    throw new Error("Bu talep zaten işlenmiş.");
-  }
 
+  const approvedAmount = Number(request.amount || 0);
   const now = new Date().toISOString();
 
-  await prisma.$executeRawUnsafe(
-    `
-      UPDATE "User"
-      SET "balance" = COALESCE("balance", 0) + ?
-      WHERE "id" = ?
-    `,
-    Number(request.amount || 0),
-    request.requesterUserId,
-  );
+  const balance = await prisma.$transaction(async (tx) => {
+    const updatedRequests = await tx.$executeRawUnsafe(
+      `
+        UPDATE "DepositRequest"
+        SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
+        WHERE "id" = ? AND "status" = ?
+      `,
+      "approved",
+      user.id,
+      now,
+      requestId,
+      "pending",
+    );
 
-  await prisma.$executeRawUnsafe(
-    `
-      UPDATE "DepositRequest"
-      SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
-      WHERE "id" = ?
-    `,
-    "approved",
-    user.id,
-    now,
-    requestId,
-  );
+    if (updatedRequests === 0) {
+      throw new Error("Bu talep zaten işlenmiş.");
+    }
 
-  await createNotificationForUser(request.requesterUserId, {
-    type: "deposit_request_approved",
-    title: "Bakiye talebiniz onaylandı",
-    message: `${Number(request.amount || 0).toFixed(2)} TL bakiyenize eklendi.`,
+    const updatedUsers = await tx.$executeRawUnsafe(
+      `
+        UPDATE "User"
+        SET "balance" = COALESCE("balance", 0) + ?
+        WHERE "id" = ?
+      `,
+      approvedAmount,
+      request.requesterUserId,
+    );
+
+    if (updatedUsers === 0) {
+      throw new Error("Kullanıcı bulunamadı.");
+    }
+
+    const nextBalance = await getUserBalance(request.requesterUserId, tx);
+
+    await createNotificationForUser(
+      request.requesterUserId,
+      {
+        type: "deposit_request_approved",
+        title: "Bakiye talebiniz onaylandı",
+        message: `${approvedAmount.toFixed(2)} TL bakiyenize eklendi.`,
+      },
+      tx,
+    );
+
+    await createWalletLedgerEntry(
+      {
+        userId: request.requesterUserId,
+        companyId: user.companyId,
+        type: "deposit_approved",
+        amount: approvedAmount,
+        balanceAfter: nextBalance,
+        note: "Bakiye yükleme talebi onaylandı.",
+        createdByUserId: user.id,
+      },
+      tx,
+    );
+
+    await createAuditLog(
+      {
+        companyId: user.companyId,
+        actorUserId: user.id,
+        action: "deposit_request_approved",
+        entityType: "deposit_request",
+        entityId: requestId,
+        message: `${user.name} bir bakiye talebini onayladı.`,
+      },
+      tx,
+    );
+
+    return nextBalance;
   });
-
-  const nextBalance = await getUserBalance(request.requesterUserId);
-  await createWalletLedgerEntry({
-    userId: request.requesterUserId,
-    companyId: user.companyId,
-    type: "deposit_approved",
-    amount: Number(request.amount || 0),
-    balanceAfter: nextBalance,
-    note: "Bakiye yükleme talebi onaylandı.",
-    createdByUserId: user.id,
-  });
-  await createAuditLog({
-    companyId: user.companyId,
-    actorUserId: user.id,
-    action: "deposit_request_approved",
-    entityType: "deposit_request",
-    entityId: requestId,
-    message: `${user.name} bir bakiye talebini onayladı.`,
-  });
-
-  const balanceRows = await prisma.$queryRawUnsafe(
-    `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
-    request.requesterUserId,
-  );
 
   return {
     request: await getDepositRequestByIdForCompany(user.companyId, requestId),
-    balance: Number(balanceRows[0]?.balance || 0),
+    balance,
   };
 }
 
@@ -1400,42 +1418,55 @@ export async function rejectDepositRequestForUser(user, requestId) {
   if (!request) {
     throw new Error("Bakiye talebi bulunamadı.");
   }
-  if (request.status !== "pending") {
-    throw new Error("Bu talep zaten işlenmiş.");
-  }
 
-  await prisma.$executeRawUnsafe(
-    `
-      UPDATE "DepositRequest"
-      SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
-      WHERE "id" = ?
-    `,
-    "rejected",
-    user.id,
-    new Date().toISOString(),
-    requestId,
-  );
+  const now = new Date().toISOString();
 
-  await createNotificationForUser(request.requesterUserId, {
-    type: "deposit_request_rejected",
-    title: "Bakiye talebiniz reddedildi",
-    message: "Yükleme talebiniz admin tarafından reddedildi. Gerekirse tekrar talep oluşturabilirsiniz.",
-  });
+  await prisma.$transaction(async (tx) => {
+    const updatedRequests = await tx.$executeRawUnsafe(
+      `
+        UPDATE "DepositRequest"
+        SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
+        WHERE "id" = ? AND "status" = ?
+      `,
+      "rejected",
+      user.id,
+      now,
+      requestId,
+      "pending",
+    );
 
-  await createAuditLog({
-    companyId: user.companyId,
-    actorUserId: user.id,
-    action: "deposit_request_rejected",
-    entityType: "deposit_request",
-    entityId: requestId,
-    message: `${user.name} bir bakiye talebini reddetti.`,
+    if (updatedRequests === 0) {
+      throw new Error("Bu talep zaten işlenmiş.");
+    }
+
+    await createNotificationForUser(
+      request.requesterUserId,
+      {
+        type: "deposit_request_rejected",
+        title: "Bakiye talebiniz reddedildi",
+        message: "Yükleme talebiniz admin tarafından reddedildi. Gerekirse tekrar talep oluşturabilirsiniz.",
+      },
+      tx,
+    );
+
+    await createAuditLog(
+      {
+        companyId: user.companyId,
+        actorUserId: user.id,
+        action: "deposit_request_rejected",
+        entityType: "deposit_request",
+        entityId: requestId,
+        message: `${user.name} bir bakiye talebini reddetti.`,
+      },
+      tx,
+    );
   });
 
   return getDepositRequestByIdForCompany(user.companyId, requestId);
 }
 
-export async function getUserBalance(userId) {
-  const rows = await prisma.$queryRawUnsafe(
+export async function getUserBalance(userId, db = prisma) {
+  const rows = await db.$queryRawUnsafe(
     `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
     userId,
   );
@@ -1449,47 +1480,61 @@ export async function consumeUserBalance(userId, amount) {
     return await getUserBalance(userId);
   }
 
-  const currentBalance = await getUserBalance(userId);
-  if (currentBalance < numericAmount) {
-    throw new Error("Bakiyeniz yetersiz. Önce bakiye yükleme talebi oluşturun.");
-  }
+  return await prisma.$transaction(async (tx) => {
+    const userRows = await tx.$queryRawUnsafe(
+      `SELECT "companyId" FROM "User" WHERE "id" = ? LIMIT 1`,
+      userId,
+    );
 
-  await prisma.$executeRawUnsafe(
-    `
-      UPDATE "User"
-      SET "balance" = COALESCE("balance", 0) - ?
-      WHERE "id" = ?
-    `,
-    numericAmount,
-    userId,
-  );
+    const userRow = userRows[0];
+    if (!userRow) {
+      throw new Error("Kullanıcı bulunamadı.");
+    }
 
-  const nextBalance = await getUserBalance(userId);
+    const updatedUsers = await tx.$executeRawUnsafe(
+      `
+        UPDATE "User"
+        SET "balance" = COALESCE("balance", 0) - ?
+        WHERE "id" = ? AND COALESCE("balance", 0) >= ?
+      `,
+      numericAmount,
+      userId,
+      numericAmount,
+    );
 
-  const userRows = await prisma.$queryRawUnsafe(
-    `SELECT "companyId" FROM "User" WHERE "id" = ? LIMIT 1`,
-    userId,
-  );
-  const companyId = userRows[0]?.companyId || "";
-  await createWalletLedgerEntry({
-    userId,
-    companyId,
-    type: "shipping_charge",
-    amount: -numericAmount,
-    balanceAfter: nextBalance,
-    note: "Kargo gönderisi bakiyeden düşüldü.",
-    createdByUserId: userId,
+    if (updatedUsers === 0) {
+      throw new Error("Bakiyeniz yetersiz. Önce bakiye yükleme talebi oluşturun.");
+    }
+
+    const nextBalance = await getUserBalance(userId, tx);
+
+    await createWalletLedgerEntry(
+      {
+        userId,
+        companyId: userRow.companyId || "",
+        type: "shipping_charge",
+        amount: -numericAmount,
+        balanceAfter: nextBalance,
+        note: "Kargo gönderisi bakiyeden düşüldü.",
+        createdByUserId: userId,
+      },
+      tx,
+    );
+
+    if (nextBalance < 150) {
+      await createNotificationForUser(
+        userId,
+        {
+          type: "low_balance",
+          title: "Bakiyeniz kritik seviyeye düştü",
+          message: `Mevcut bakiyeniz ${nextBalance.toFixed(2)} TL. 150 TL altı bakiyede yeni kargo kodu oluşturamazsınız.`,
+        },
+        tx,
+      );
+    }
+
+    return nextBalance;
   });
-
-  if (nextBalance < 150) {
-    await createNotificationForUser(userId, {
-      type: "low_balance",
-      title: "Bakiyeniz kritik seviyeye düştü",
-      message: `Mevcut bakiyeniz ${nextBalance.toFixed(2)} TL. 150 TL altı bakiyede yeni kargo kodu oluşturamazsınız.`,
-    });
-  }
-
-  return nextBalance;
 }
 
 export async function listQuotesForUser(user) {
@@ -1968,8 +2013,8 @@ async function getDepositRequestRowForCompany(companyId, requestId) {
   return row;
 }
 
-async function createNotificationForUser(userId, payload) {
-  await prisma.$executeRawUnsafe(
+async function createNotificationForUser(userId, payload, db = prisma) {
+  await db.$executeRawUnsafe(
     `
       INSERT INTO "Notification" ("id", "ownerUserId", "data", "readAt", "createdAt")
       VALUES (?, ?, ?, ?, ?)
@@ -1990,8 +2035,8 @@ async function createWalletLedgerEntry({
   balanceAfter,
   note,
   createdByUserId,
-}) {
-  await prisma.$executeRawUnsafe(
+}, db = prisma) {
+  await db.$executeRawUnsafe(
     `
       INSERT INTO "WalletLedger" ("id", "userId", "companyId", "type", "amount", "balanceAfter", "note", "createdAt", "createdByUserId", "data")
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2009,8 +2054,8 @@ async function createWalletLedgerEntry({
   );
 }
 
-async function createAuditLog({ companyId, actorUserId, action, entityType, entityId, message, data = {} }) {
-  await prisma.$executeRawUnsafe(
+async function createAuditLog({ companyId, actorUserId, action, entityType, entityId, message, data = {} }, db = prisma) {
+  await db.$executeRawUnsafe(
     `
       INSERT INTO "AuditLog" ("id", "companyId", "actorUserId", "action", "entityType", "entityId", "message", "data", "createdAt")
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -2106,3 +2151,4 @@ async function assertOwnedByCompanyOrThrow(tableName, recordId, companyId, messa
     throw new Error(message);
   }
 }
+
