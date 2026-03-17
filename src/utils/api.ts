@@ -11,6 +11,7 @@ import type {
   WalletSummary,
   DepositRequest,
   AppNotification,
+  OrganizationSummary,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -78,6 +79,9 @@ export const usersApi = {
         body: JSON.stringify(payload),
       })
     ).user,
+  delete: async (userId: string) => {
+    await apiRequest<{ ok: true }>(`/api/users/${userId}`, { method: "DELETE" });
+  },
 };
 
 export const settingsApi = {
@@ -211,4 +215,20 @@ export const notificationsApi = {
   markAllRead: async () => {
     await apiRequest<{ ok: true }>("/api/notifications/read-all", { method: "POST" });
   },
+};
+
+export const organizationsApi = {
+  list: async () => (await apiRequest<{ organizations: OrganizationSummary[] }>("/api/platform/organizations")).organizations,
+  create: async (payload: {
+    companyName: string;
+    adminName: string;
+    adminEmail: string;
+    adminPassword: string;
+  }) =>
+    (
+      await apiRequest<{ organization: OrganizationSummary }>("/api/platform/organizations", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+    ).organization,
 };

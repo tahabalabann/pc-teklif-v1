@@ -34,6 +34,7 @@ async function ensureSchema() {
 
   await ensureColumn("User", "companyId", "TEXT");
   await ensureColumn("User", "balance", "REAL NOT NULL DEFAULT 0");
+  await ensureColumn("User", "isPlatformAdmin", "INTEGER NOT NULL DEFAULT 0");
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Quote" (
@@ -161,6 +162,7 @@ function publicUser(row) {
     companyId: row.companyId,
     companyName: row.companyName || "",
     balance: Number(row.balance || 0),
+    isPlatformAdmin: Boolean(row.isPlatformAdmin || 0),
   };
 }
 
@@ -249,8 +251,8 @@ export async function ensureSeedAdmin() {
 
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     randomUUID(),
     name,
@@ -261,6 +263,7 @@ export async function ensureSeedAdmin() {
     passwordData.salt,
     organization.id,
     0,
+    1,
   );
 }
 
@@ -274,6 +277,7 @@ export async function authenticateUser(email, password) {
         u."role" AS "role",
         u."createdAt" AS "createdAt",
         u."balance" AS "balance",
+        u."isPlatformAdmin" AS "isPlatformAdmin",
         u."passwordHash" AS "passwordHash",
         u."passwordSalt" AS "passwordSalt",
         u."companyId" AS "companyId",
@@ -304,6 +308,7 @@ export async function listUsers(currentUser) {
         u."role" AS "role",
         u."createdAt" AS "createdAt",
         u."balance" AS "balance",
+        u."isPlatformAdmin" AS "isPlatformAdmin",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "User" u
@@ -389,8 +394,8 @@ export async function createUser({ name, email, password, role, companyId }) {
 
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     id,
     name,
@@ -400,6 +405,7 @@ export async function createUser({ name, email, password, role, companyId }) {
     passwordData.hash,
     passwordData.salt,
     companyId,
+    0,
     0,
   );
 
@@ -412,6 +418,7 @@ export async function createUser({ name, email, password, role, companyId }) {
         u."role" AS "role",
         u."createdAt" AS "createdAt",
         u."balance" AS "balance",
+        u."isPlatformAdmin" AS "isPlatformAdmin",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "User" u
@@ -423,6 +430,166 @@ export async function createUser({ name, email, password, role, companyId }) {
   );
 
   return publicUser(userRows[0]);
+}
+
+export async function listOrganizationsForPlatformAdmin() {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        o."id" AS "id",
+        o."name" AS "companyName",
+        o."createdAt" AS "createdAt",
+        COUNT(u."id") AS "userCount",
+        SUM(CASE WHEN u."role" = 'admin' THEN 1 ELSE 0 END) AS "adminCount"
+      FROM "Organization" o
+      LEFT JOIN "User" u ON u."companyId" = o."id"
+      GROUP BY o."id", o."name", o."createdAt"
+      ORDER BY o."createdAt" DESC
+    `,
+  );
+
+  return rows.map((row) => ({
+    id: row.id,
+    companyName: row.companyName || "",
+    createdAt: row.createdAt,
+    userCount: Number(row.userCount || 0),
+    adminCount: Number(row.adminCount || 0),
+  }));
+}
+
+export async function createOrganizationWithAdmin({ companyName, adminName, adminEmail, adminPassword }) {
+  const normalizedCompanyName = String(companyName || "").trim();
+  const normalizedAdminName = String(adminName || "").trim();
+  const normalizedAdminEmail = String(adminEmail || "").trim().toLowerCase();
+  const normalizedAdminPassword = String(adminPassword || "");
+
+  if (!normalizedCompanyName || !normalizedAdminName || !normalizedAdminEmail || !normalizedAdminPassword) {
+    throw new Error("Firma ve ilk admin bilgileri zorunludur.");
+  }
+
+  const existingOrganizationRows = await prisma.$queryRawUnsafe(
+    `SELECT "id" FROM "Organization" WHERE LOWER("name") = LOWER(?) LIMIT 1`,
+    normalizedCompanyName,
+  );
+  if (existingOrganizationRows[0]) {
+    throw new Error("Bu firma adıyla kayıtlı bir organizasyon zaten var.");
+  }
+
+  const existingUserRows = await prisma.$queryRawUnsafe(
+    `SELECT "id" FROM "User" WHERE "email" = ? LIMIT 1`,
+    normalizedAdminEmail,
+  );
+  if (existingUserRows[0]) {
+    throw new Error("Bu e-posta ile kayıtlı bir kullanıcı zaten var.");
+  }
+
+  const organizationId = randomUUID();
+  const now = new Date().toISOString();
+  const passwordData = hashPassword(normalizedAdminPassword);
+
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO "Organization" ("id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "paymentAccountName", "paymentIban", "createdAt")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    organizationId,
+    normalizedCompanyName,
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    now,
+  );
+
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    randomUUID(),
+    normalizedAdminName,
+    normalizedAdminEmail,
+    "admin",
+    now,
+    passwordData.hash,
+    passwordData.salt,
+    organizationId,
+    0,
+    0,
+  );
+
+  const createdRows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        o."id" AS "id",
+        o."name" AS "companyName",
+        o."createdAt" AS "createdAt",
+        COUNT(u."id") AS "userCount",
+        SUM(CASE WHEN u."role" = 'admin' THEN 1 ELSE 0 END) AS "adminCount"
+      FROM "Organization" o
+      LEFT JOIN "User" u ON u."companyId" = o."id"
+      WHERE o."id" = ?
+      GROUP BY o."id", o."name", o."createdAt"
+    `,
+    organizationId,
+  );
+
+  return {
+    id: createdRows[0].id,
+    companyName: createdRows[0].companyName || "",
+    createdAt: createdRows[0].createdAt,
+    userCount: Number(createdRows[0].userCount || 0),
+    adminCount: Number(createdRows[0].adminCount || 0),
+  };
+}
+
+export async function deleteUserForAdmin(currentUser, targetUserId) {
+  if (currentUser.id === targetUserId) {
+    throw new Error("Kendi hesabınızı bu ekrandan silemezsiniz.");
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT "id", "companyId", "role", "isPlatformAdmin"
+      FROM "User"
+      WHERE "id" = ?
+      LIMIT 1
+    `,
+    targetUserId,
+  );
+
+  const targetUser = rows[0];
+  if (!targetUser) {
+    return;
+  }
+
+  if (!currentUser.isPlatformAdmin && targetUser.companyId !== currentUser.companyId) {
+    throw new Error("Bu kullanıcı başka bir firmaya ait.");
+  }
+
+  if (targetUser.isPlatformAdmin) {
+    throw new Error("Platform admin kullanıcı silinemez.");
+  }
+
+  if (targetUser.role === "admin") {
+    const adminCountRows = await prisma.$queryRawUnsafe(
+      `
+        SELECT COUNT(*) AS "count"
+        FROM "User"
+        WHERE "companyId" = ? AND "role" = 'admin'
+      `,
+      targetUser.companyId,
+    );
+
+    if (Number(adminCountRows[0]?.count || 0) <= 1) {
+      throw new Error("Firmanın son admin kullanıcısı silinemez.");
+    }
+  }
+
+  await prisma.$executeRawUnsafe(`DELETE FROM "User" WHERE "id" = ?`, targetUserId);
 }
 
 export async function createSessionForUser(user) {
@@ -457,6 +624,7 @@ export async function getSessionUser(token) {
         u."role" AS "role",
         u."createdAt" AS "createdAt",
         u."balance" AS "balance",
+        u."isPlatformAdmin" AS "isPlatformAdmin",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "Session" s

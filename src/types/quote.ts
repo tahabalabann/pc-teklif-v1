@@ -134,6 +134,7 @@ export interface AppUser {
   companyId: string;
   companyName: string;
   balance: number;
+  isPlatformAdmin: boolean;
 }
 
 export interface AuthSession {
@@ -204,4 +205,12 @@ export interface CompanyRecord {
   tags?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OrganizationSummary {
+  id: string;
+  companyName: string;
+  createdAt: string;
+  userCount: number;
+  adminCount: number;
 }
