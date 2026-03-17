@@ -632,14 +632,20 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
     const transactionResponse = await acceptOfferById(getOfferId(selectedOffer));
     const shipment = normalizeShipmentResponse(transactionResponse);
     const chargedShipmentPrice = calculateChargedShippingAmount(shipment.shipmentPrice || estimatedPrice, req.user);
+    const responseShipment = req.user.isPlatformAdmin
+      ? shipment
+      : {
+          ...shipment,
+          shipmentPrice: chargedShipmentPrice,
+        };
 
     if (!req.user.isPlatformAdmin) {
       await consumeUserBalance(req.user.id, chargedShipmentPrice);
     }
 
-    await createShipmentAuditLogForUser(req.user, quote.quoteNo || quote.id || "", shipment);
+    await createShipmentAuditLogForUser(req.user, quote.quoteNo || quote.id || "", responseShipment);
 
-    return res.json({ shipment });
+    return res.json({ shipment: responseShipment });
   } catch (error) {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Geliver işlemi sırasında hata oluştu.",
