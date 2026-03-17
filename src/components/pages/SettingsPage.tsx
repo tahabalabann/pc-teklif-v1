@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
-import type { AppNotification, AppUser, CompanySettings, DepositRequest } from "../../types/quote";
-import { notificationsApi, settingsApi, usersApi, walletApi } from "../../utils/api";
+import type {
+  AppNotification,
+  AppUser,
+  CompanySettings,
+  DepositRequest,
+  OrganizationSummary,
+} from "../../types/quote";
+import {
+  notificationsApi,
+  organizationsApi,
+  settingsApi,
+  usersApi,
+  walletApi,
+} from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -33,16 +45,32 @@ const emptyUserForm = {
   role: "staff" as "admin" | "staff",
 };
 
-export function SettingsPage({ currentUser, onCompanySaved, notifications, onNotificationsChange }: SettingsPageProps) {
+const emptyOrganizationForm = {
+  companyName: "",
+  adminName: "",
+  adminEmail: "",
+  adminPassword: "",
+};
+
+export function SettingsPage({
+  currentUser,
+  onCompanySaved,
+  notifications,
+  onNotificationsChange,
+}: SettingsPageProps) {
   const [company, setCompany] = useState<CompanySettings>(emptyCompanySettings);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [userForm, setUserForm] = useState(emptyUserForm);
+  const [organizationForm, setOrganizationForm] = useState(emptyOrganizationForm);
   const [loading, setLoading] = useState(true);
   const [companySaving, setCompanySaving] = useState(false);
   const [userSaving, setUserSaving] = useState(false);
+  const [organizationSaving, setOrganizationSaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
+  const [organizationMessage, setOrganizationMessage] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -53,11 +81,13 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
       setError("");
 
       try {
-        const [companySettings, companyUsers, requests] = await Promise.all([
+        const [companySettings, companyUsers, requests, platformOrganizations] = await Promise.all([
           settingsApi.getCompany(),
           usersApi.list(),
           walletApi.listRequests(),
+          currentUser.isPlatformAdmin ? organizationsApi.list() : Promise.resolve([]),
         ]);
+
         if (!mounted) {
           return;
         }
@@ -65,6 +95,7 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
         setCompany(companySettings);
         setUsers(companyUsers);
         setDepositRequests(requests);
+        setOrganizations(platformOrganizations);
       } catch (caughtError) {
         if (!mounted) {
           return;
@@ -79,10 +110,11 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
     };
 
     void loadData();
+
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [currentUser.isPlatformAdmin]);
 
   const handleSaveCompany = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -120,33 +152,92 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
     }
   };
 
-  const handleApproveRequest = async (requestId: string) => {
-    const result = await walletApi.approveRequest(requestId);
-    setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? result.request : item)));
-    setUsers((prev) =>
-      prev.map((user) => (user.id === result.request.requesterUserId ? { ...user, balance: result.balance } : user)),
+  const handleDeleteUser = async (user: AppUser) => {
+    const confirmed = window.confirm(
+      `${user.name} adlı kullanıcıyı silmek istediğine emin misin? Bu işlem geri alınamaz.`,
     );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setError("");
+    setUserMessage("");
+
+    try {
+      await usersApi.delete(user.id);
+      setUsers((prev) => prev.filter((item) => item.id !== user.id));
+      setUserMessage(`${user.name} kullanıcısı silindi.`);
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Kullanıcı silinemedi.");
+    }
+  };
+
+  const handleCreateOrganization = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setOrganizationSaving(true);
+    setOrganizationMessage("");
+    setError("");
+
+    try {
+      const organization = await organizationsApi.create(organizationForm);
+      setOrganizations((prev) => [organization, ...prev]);
+      setOrganizationForm(emptyOrganizationForm);
+      setOrganizationMessage("Yeni firma ve ilk admin hesabı oluşturuldu.");
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Firma oluşturulamadı.");
+    } finally {
+      setOrganizationSaving(false);
+    }
+  };
+
+  const handleApproveRequest = async (requestId: string) => {
+    setError("");
+
+    try {
+      const result = await walletApi.approveRequest(requestId);
+      setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? result.request : item)));
+      setUsers((prev) =>
+        prev.map((user) =>
+          user.id === result.request.requesterUserId ? { ...user, balance: result.balance } : user,
+        ),
+      );
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Talep onaylanamadı.");
+    }
   };
 
   const handleRejectRequest = async (requestId: string) => {
-    const request = await walletApi.rejectRequest(requestId);
-    setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? request : item)));
+    setError("");
+
+    try {
+      const request = await walletApi.rejectRequest(requestId);
+      setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? request : item)));
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Talep reddedilemedi.");
+    }
   };
 
   const handleMarkNotificationsRead = async () => {
-    await notificationsApi.markAllRead();
-    onNotificationsChange(
-      notifications.map((notification) => ({
-        ...notification,
-        readAt: notification.readAt || new Date().toISOString(),
-      })),
-    );
+    setError("");
+
+    try {
+      await notificationsApi.markAllRead();
+      onNotificationsChange(
+        notifications.map((notification) => ({
+          ...notification,
+          readAt: notification.readAt || new Date().toISOString(),
+        })),
+      );
+    } catch (caughtError) {
+      setError(caughtError instanceof Error ? caughtError.message : "Bildirimler güncellenemedi.");
+    }
   };
 
   if (loading) {
     return (
       <Card className="p-6">
-        <p className="text-sm text-ink-600">Firma ayarları yükleniyor...</p>
+        <p className="text-sm text-ink-600">Ayarlar yükleniyor...</p>
       </Card>
     );
   }
@@ -157,16 +248,25 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Firma Ayarları</p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink-900">{company.companyName || currentUser.companyName}</h2>
+            <h2 className="mt-2 text-2xl font-semibold text-ink-900">
+              {company.companyName || currentUser.companyName}
+            </h2>
             <p className="mt-2 max-w-2xl text-sm text-ink-600">
-              Firma kimliğini, tekliflerde kullanılacak temel iletişim bilgisini ve bakiye yükleme hesap bilgilerini tek yerden yönetin.
+              Firma kimliğini, tekliflerde kullanılacak iletişim bilgisini ve bakiye yükleme hesap
+              bilgilerini tek yerden yönet.
             </p>
           </div>
 
           <div className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-ink-700">
             <p className="font-semibold text-ink-900">{currentUser.name}</p>
             <p>{currentUser.companyName}</p>
-            <p className="text-xs uppercase tracking-[0.16em] text-ink-500">{currentUser.role}</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
+              {currentUser.isPlatformAdmin
+                ? "Platform Admin"
+                : currentUser.role === "admin"
+                  ? "Admin"
+                  : "Personel"}
+            </p>
           </div>
         </div>
 
@@ -179,7 +279,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, companyName: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2">
             <span className="text-sm font-medium text-ink-700">Logo URL</span>
             <input
@@ -189,7 +288,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, logoUrl: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2">
             <span className="text-sm font-medium text-ink-700">Telefon</span>
             <input
@@ -198,7 +296,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, phone: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2">
             <span className="text-sm font-medium text-ink-700">E-posta</span>
             <input
@@ -207,7 +304,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, email: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2 md:col-span-2">
             <span className="text-sm font-medium text-ink-700">Adres</span>
             <textarea
@@ -216,7 +312,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, address: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2 md:col-span-2">
             <span className="text-sm font-medium text-ink-700">Varsayılan satıcı bilgisi</span>
             <textarea
@@ -225,17 +320,17 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
               onChange={(event) => setCompany((prev) => ({ ...prev, sellerInfo: event.target.value }))}
             />
           </label>
-
           <label className="space-y-2">
             <span className="text-sm font-medium text-ink-700">Bakiye yükleme alıcı adı</span>
             <input
               className="field"
               placeholder="Ad Soyad"
               value={company.paymentAccountName}
-              onChange={(event) => setCompany((prev) => ({ ...prev, paymentAccountName: event.target.value }))}
+              onChange={(event) =>
+                setCompany((prev) => ({ ...prev, paymentAccountName: event.target.value }))
+              }
             />
           </label>
-
           <label className="space-y-2">
             <span className="text-sm font-medium text-ink-700">IBAN</span>
             <input
@@ -246,7 +341,11 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
             />
           </label>
 
-          {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">{error}</div>}
+          {error && (
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
+              {error}
+            </div>
+          )}
           {companyMessage && (
             <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
               {companyMessage}
@@ -257,7 +356,6 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
             <Button disabled={companySaving} type="submit" variant="primary">
               {companySaving ? "Kaydediliyor..." : "Firma Ayarlarını Kaydet"}
             </Button>
-            <span className="text-xs text-ink-500">IBAN ve alıcı adı kullanıcıların bakiye yükleme panelinde gösterilir.</span>
           </div>
         </form>
       </Card>
@@ -265,13 +363,17 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
       <Card className="p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Kullanıcı Yönetimi</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
+              Kullanıcı Yönetimi
+            </p>
             <h2 className="mt-2 text-xl font-semibold text-ink-900">Firma kullanıcıları</h2>
             <p className="mt-2 text-sm text-ink-600">
-              Bu firmaya bağlı personeli ekleyin. Aynı firmadaki kullanıcılar ortak teklif havuzunu görür.
+              Mevcut firmaya bağlı kullanıcıları ekleyin veya kaldırın.
             </p>
           </div>
-          <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">{users.length} kullanıcı</div>
+          <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">
+            {users.length} kullanıcı
+          </div>
         </div>
 
         <form className="mt-5 grid gap-3" onSubmit={handleCreateUser}>
@@ -299,14 +401,21 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
             className="field"
             value={userForm.role}
             onChange={(event) =>
-              setUserForm((prev) => ({ ...prev, role: event.target.value === "admin" ? "admin" : "staff" }))
+              setUserForm((prev) => ({
+                ...prev,
+                role: event.target.value === "admin" ? "admin" : "staff",
+              }))
             }
           >
             <option value="staff">Personel</option>
             <option value="admin">Admin</option>
           </select>
 
-          {userMessage && <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{userMessage}</div>}
+          {userMessage && (
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {userMessage}
+            </div>
+          )}
 
           <Button disabled={userSaving} type="submit" variant="secondary">
             {userSaving ? "Ekleniyor..." : "Kullanıcı Ekle"}
@@ -314,31 +423,143 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
         </form>
 
         <div className="mt-6 space-y-3">
-          {users.map((user) => (
-            <div key={user.id} className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-4">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-semibold text-ink-900">{user.name}</p>
-                  <p className="mt-1 text-sm text-ink-600">{user.email}</p>
-                  <p className="mt-1 text-sm font-medium text-red-600">Bakiye: {formatCurrency(user.balance || 0)}</p>
-                  <p className="mt-1 text-xs text-ink-500">Eklenme: {formatDateTime(user.createdAt)}</p>
-                </div>
-                <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-600 ring-1 ring-ink-200">
-                  {user.role === "admin" ? "Admin" : "Personel"}
+          {users.map((user) => {
+            const canDelete = user.id !== currentUser.id && !user.isPlatformAdmin;
+
+            return (
+              <div key={user.id} className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold text-ink-900">{user.name}</p>
+                    <p className="mt-1 text-sm text-ink-600">{user.email}</p>
+                    <p className="mt-1 text-sm font-medium text-red-600">
+                      Bakiye: {formatCurrency(user.balance || 0)}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-500">Eklenme: {formatDateTime(user.createdAt)}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-600 ring-1 ring-ink-200">
+                      {user.role === "admin" ? "Admin" : "Personel"}
+                    </div>
+                    {canDelete ? (
+                      <Button type="button" variant="danger" onClick={() => void handleDeleteUser(user)}>
+                        Kullanıcıyı Sil
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-ink-500">
+                        {user.id === currentUser.id
+                          ? "Aktif kullanıcı"
+                          : user.isPlatformAdmin
+                            ? "Platform admin"
+                            : ""}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
+
+      {currentUser.isPlatformAdmin && (
+        <Card className="p-6 xl:col-span-2">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
+                Firma Yönetimi
+              </p>
+              <h2 className="mt-2 text-xl font-semibold text-ink-900">
+                Yeni firma ve ilk admin oluştur
+              </h2>
+              <p className="mt-2 text-sm text-ink-600">
+                Bu panelden sisteme bağımsız yeni firmalar ekleyebilir ve ilk admin hesabını
+                oluşturabilirsiniz.
+              </p>
+            </div>
+          </div>
+
+          <form className="mt-5 grid gap-3 md:grid-cols-2" onSubmit={handleCreateOrganization}>
+            <input
+              className="field"
+              placeholder="Firma adı"
+              value={organizationForm.companyName}
+              onChange={(event) =>
+                setOrganizationForm((prev) => ({ ...prev, companyName: event.target.value }))
+              }
+            />
+            <input
+              className="field"
+              placeholder="İlk admin adı"
+              value={organizationForm.adminName}
+              onChange={(event) =>
+                setOrganizationForm((prev) => ({ ...prev, adminName: event.target.value }))
+              }
+            />
+            <input
+              className="field"
+              placeholder="İlk admin e-posta"
+              type="email"
+              value={organizationForm.adminEmail}
+              onChange={(event) =>
+                setOrganizationForm((prev) => ({ ...prev, adminEmail: event.target.value }))
+              }
+            />
+            <input
+              className="field"
+              placeholder="İlk admin parola"
+              type="password"
+              value={organizationForm.adminPassword}
+              onChange={(event) =>
+                setOrganizationForm((prev) => ({ ...prev, adminPassword: event.target.value }))
+              }
+            />
+
+            {organizationMessage && (
+              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
+                {organizationMessage}
+              </div>
+            )}
+
+            <div className="md:col-span-2">
+              <Button disabled={organizationSaving} type="submit" variant="primary">
+                {organizationSaving ? "Firma Oluşturuluyor..." : "Firma Oluştur"}
+              </Button>
+            </div>
+          </form>
+
+          <div className="mt-6 space-y-3">
+            {organizations.map((organization) => (
+              <div key={organization.id} className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-ink-900">{organization.companyName}</p>
+                    <p className="mt-1 text-sm text-ink-600">
+                      Kullanıcı: {organization.userCount} • Admin: {organization.adminCount}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-500">
+                      Oluşturulma: {formatDateTime(organization.createdAt)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-6 xl:col-span-2">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Bakiye Talepleri</p>
-            <h2 className="mt-2 text-xl font-semibold text-ink-900">Onay bekleyen yükleme istekleri</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
+              Bakiye Talepleri
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">
+              Onay bekleyen yükleme istekleri
+            </h2>
             <p className="mt-2 text-sm text-ink-600">
-              Kullanıcılar havale yaptıktan sonra burada talep oluşturur. Kontrol edip onayladığınızda bakiye kullanıcıya eklenir.
+              Kullanıcılar havale yaptıktan sonra burada talep oluşturur. Kontrol edip
+              onayladığınızda bakiye kullanıcıya eklenir.
             </p>
           </div>
           <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">
@@ -360,12 +581,17 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
                     <p className="mt-1 text-sm text-ink-600">
                       {request.requesterEmail} • {formatCurrency(request.amount)}
                     </p>
-                    <p className="mt-1 text-xs text-ink-500">Talep: {formatDateTime(request.createdAt)}</p>
-                    {request.note && <p className="mt-2 whitespace-pre-line text-sm text-ink-700">{request.note}</p>}
+                    <p className="mt-1 text-xs text-ink-500">
+                      Talep: {formatDateTime(request.createdAt)}
+                    </p>
+                    {request.note && (
+                      <p className="mt-2 whitespace-pre-line text-sm text-ink-700">{request.note}</p>
+                    )}
                     {request.status !== "pending" && (
                       <p className="mt-2 text-xs text-ink-500">
                         İşlem: {request.status === "approved" ? "Onaylandı" : "Reddedildi"}
-                        {request.approvedByName ? ` • ${request.approvedByName}` : ""} • {formatDateTime(request.updatedAt)}
+                        {request.approvedByName ? ` • ${request.approvedByName}` : ""} •{" "}
+                        {formatDateTime(request.updatedAt)}
                       </p>
                     )}
                   </div>
@@ -373,10 +599,18 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
                   <div className="flex flex-wrap gap-2">
                     {request.status === "pending" ? (
                       <>
-                        <Button type="button" variant="primary" onClick={() => void handleApproveRequest(request.id)}>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={() => void handleApproveRequest(request.id)}
+                        >
                           Onayla
                         </Button>
-                        <Button type="button" onClick={() => void handleRejectRequest(request.id)}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => void handleRejectRequest(request.id)}
+                        >
                           Reddet
                         </Button>
                       </>
@@ -396,11 +630,10 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
       <Card className="p-6 xl:col-span-2">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Panel Bildirimleri</p>
-            <h2 className="mt-2 text-xl font-semibold text-ink-900">Uygulama içi bildirim akışı</h2>
-            <p className="mt-2 text-sm text-ink-600">
-              Yeni bakiye talepleri, onaylar, red işlemleri ve düşük bakiye uyarıları burada görünür.
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
+              Panel Bildirimleri
             </p>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">Uygulama içi bildirim akışı</h2>
           </div>
           <Button type="button" onClick={() => void handleMarkNotificationsRead()}>
             Tümünü Okundu Yap
@@ -424,7 +657,9 @@ export function SettingsPage({ currentUser, onCompanySaved, notifications, onNot
                   <div>
                     <p className="font-semibold text-ink-900">{notification.title}</p>
                     <p className="mt-2 text-sm text-ink-700">{notification.message}</p>
-                    <p className="mt-2 text-xs text-ink-500">{formatDateTime(notification.createdAt)}</p>
+                    <p className="mt-2 text-xs text-ink-500">
+                      {formatDateTime(notification.createdAt)}
+                    </p>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-200">
                     {notification.readAt ? "Okundu" : "Yeni"}
