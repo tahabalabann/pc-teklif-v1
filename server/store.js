@@ -119,6 +119,17 @@ async function ensureSchema() {
       CONSTRAINT "DepositRequest_approvedByUserId_fkey" FOREIGN KEY ("approvedByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
     );
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "Notification" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "ownerUserId" TEXT NOT NULL,
+      "data" TEXT NOT NULL,
+      "readAt" TEXT,
+      "createdAt" TEXT NOT NULL,
+      CONSTRAINT "Notification_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  `);
 }
 
 async function ensureColumn(tableName, columnName, columnType) {
@@ -499,6 +510,43 @@ export async function getWalletSummaryForUser(user) {
   };
 }
 
+export async function listNotificationsForUser(user) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT n."id" AS "id", n."data" AS "data", n."readAt" AS "readAt", n."createdAt" AS "createdAt"
+      FROM "Notification" n
+      WHERE n."ownerUserId" = ?
+      ORDER BY n."createdAt" DESC
+      LIMIT 50
+    `,
+    user.id,
+  );
+
+  return rows.map((row) => {
+    const payload = JSON.parse(row.data);
+    return {
+      id: row.id,
+      type: payload.type || "low_balance",
+      title: payload.title || "",
+      message: payload.message || "",
+      readAt: row.readAt || "",
+      createdAt: row.createdAt,
+    };
+  });
+}
+
+export async function markAllNotificationsReadForUser(user) {
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE "Notification"
+      SET "readAt" = ?
+      WHERE "ownerUserId" = ? AND ("readAt" IS NULL OR TRIM("readAt") = '')
+    `,
+    new Date().toISOString(),
+    user.id,
+  );
+}
+
 export async function listDepositRequestsForUser(user) {
   const rows = await prisma.$queryRawUnsafe(
     `
@@ -576,6 +624,12 @@ export async function createDepositRequestForUser(user, { amount, note }) {
     payload.updatedAt,
   );
 
+  await createCompanyAdminNotifications(user.companyId, {
+    type: "deposit_request_created",
+    title: "Yeni bakiye yükleme talebi",
+    message: `${user.name} kullanıcısı ${numericAmount.toFixed(2)} TL için yükleme talebi oluşturdu.`,
+  });
+
   return payload;
 }
 
@@ -612,6 +666,12 @@ export async function approveDepositRequestForUser(user, requestId) {
     requestId,
   );
 
+  await createNotificationForUser(request.requesterUserId, {
+    type: "deposit_request_approved",
+    title: "Bakiye talebiniz onaylandı",
+    message: `${Number(request.amount || 0).toFixed(2)} TL bakiyenize eklendi.`,
+  });
+
   const balanceRows = await prisma.$queryRawUnsafe(
     `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
     request.requesterUserId,
@@ -643,6 +703,12 @@ export async function rejectDepositRequestForUser(user, requestId) {
     new Date().toISOString(),
     requestId,
   );
+
+  await createNotificationForUser(request.requesterUserId, {
+    type: "deposit_request_rejected",
+    title: "Bakiye talebiniz reddedildi",
+    message: "Yükleme talebiniz admin tarafından reddedildi. Gerekirse tekrar talep oluşturabilirsiniz.",
+  });
 
   return getDepositRequestByIdForCompany(user.companyId, requestId);
 }
@@ -677,7 +743,17 @@ export async function consumeUserBalance(userId, amount) {
     userId,
   );
 
-  return await getUserBalance(userId);
+  const nextBalance = await getUserBalance(userId);
+
+  if (nextBalance < 150) {
+    await createNotificationForUser(userId, {
+      type: "low_balance",
+      title: "Bakiyeniz kritik seviyeye düştü",
+      message: `Mevcut bakiyeniz ${nextBalance.toFixed(2)} TL. 150 TL altı bakiyede yeni kargo kodu oluşturamazsınız.`,
+    });
+  }
+
+  return nextBalance;
 }
 
 export async function listQuotesForUser(user) {
@@ -1066,6 +1142,33 @@ async function getDepositRequestRowForCompany(companyId, requestId) {
   }
 
   return row;
+}
+
+async function createNotificationForUser(userId, payload) {
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO "Notification" ("id", "ownerUserId", "data", "readAt", "createdAt")
+      VALUES (?, ?, ?, ?, ?)
+    `,
+    randomUUID(),
+    userId,
+    JSON.stringify(payload),
+    null,
+    new Date().toISOString(),
+  );
+}
+
+async function createCompanyAdminNotifications(companyId, payload) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT "id"
+      FROM "User"
+      WHERE "companyId" = ? AND "role" = 'admin'
+    `,
+    companyId,
+  );
+
+  await Promise.all(rows.map((row) => createNotificationForUser(row.id, payload)));
 }
 
 async function getDepositRequestByIdForCompany(companyId, requestId) {

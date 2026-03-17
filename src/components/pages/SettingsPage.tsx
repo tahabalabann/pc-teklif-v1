@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { AppUser, CompanySettings, DepositRequest } from "../../types/quote";
-import { settingsApi, usersApi, walletApi } from "../../utils/api";
+import type { AppNotification, AppUser, CompanySettings, DepositRequest } from "../../types/quote";
+import { notificationsApi, settingsApi, usersApi, walletApi } from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -9,6 +9,8 @@ import { Card } from "../ui/Card";
 interface SettingsPageProps {
   currentUser: AppUser;
   onCompanySaved: (company: CompanySettings) => void;
+  notifications: AppNotification[];
+  onNotificationsChange: (notifications: AppNotification[]) => void;
 }
 
 const emptyCompanySettings: CompanySettings = {
@@ -31,7 +33,7 @@ const emptyUserForm = {
   role: "staff" as "admin" | "staff",
 };
 
-export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps) {
+export function SettingsPage({ currentUser, onCompanySaved, notifications, onNotificationsChange }: SettingsPageProps) {
   const [company, setCompany] = useState<CompanySettings>(emptyCompanySettings);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
@@ -129,6 +131,16 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
   const handleRejectRequest = async (requestId: string) => {
     const request = await walletApi.rejectRequest(requestId);
     setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? request : item)));
+  };
+
+  const handleMarkNotificationsRead = async () => {
+    await notificationsApi.markAllRead();
+    onNotificationsChange(
+      notifications.map((notification) => ({
+        ...notification,
+        readAt: notification.readAt || new Date().toISOString(),
+      })),
+    );
   };
 
   if (loading) {
@@ -374,6 +386,49 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
                       </span>
                     )}
                   </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </Card>
+
+      <Card className="p-6 xl:col-span-2">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Panel Bildirimleri</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">Uygulama içi bildirim akışı</h2>
+            <p className="mt-2 text-sm text-ink-600">
+              Yeni bakiye talepleri, onaylar, red işlemleri ve düşük bakiye uyarıları burada görünür.
+            </p>
+          </div>
+          <Button type="button" onClick={() => void handleMarkNotificationsRead()}>
+            Tümünü Okundu Yap
+          </Button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {notifications.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-ink-300 px-4 py-6 text-sm text-ink-500">
+              Henüz bildirim yok.
+            </div>
+          ) : (
+            notifications.map((notification) => (
+              <div
+                key={notification.id}
+                className={`rounded-2xl border p-4 ${
+                  notification.readAt ? "border-ink-200 bg-white/80" : "border-red-200 bg-red-50/70"
+                }`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-ink-900">{notification.title}</p>
+                    <p className="mt-2 text-sm text-ink-700">{notification.message}</p>
+                    <p className="mt-2 text-xs text-ink-500">{formatDateTime(notification.createdAt)}</p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-200">
+                    {notification.readAt ? "Okundu" : "Yeni"}
+                  </span>
                 </div>
               </div>
             ))

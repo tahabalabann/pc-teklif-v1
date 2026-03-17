@@ -39,6 +39,7 @@ model User {
   shipmentRecords   ShipmentRecord[]
   depositRequests   DepositRequest[]     @relation("DepositRequester")
   approvedRequests  DepositRequest[]     @relation("DepositApprover")
+  notifications     Notification[]
   sessions          Session[]
 }
 
@@ -100,6 +101,15 @@ model DepositRequest {
   updatedAt        String
   requester        User   @relation("DepositRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
   approver         User?  @relation("DepositApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+}
+
+model Notification {
+  id          String @id
+  ownerUserId String
+  data        String
+  readAt      String?
+  createdAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 }
 
 model Session {

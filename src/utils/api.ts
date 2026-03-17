@@ -10,6 +10,7 @@ import type {
   ShipmentRecord,
   WalletSummary,
   DepositRequest,
+  AppNotification,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -203,4 +204,11 @@ export const walletApi = {
         method: "POST",
       })
     ).request,
+};
+
+export const notificationsApi = {
+  list: async () => (await apiRequest<{ notifications: AppNotification[] }>("/api/notifications")).notifications,
+  markAllRead: async () => {
+    await apiRequest<{ ok: true }>("/api/notifications/read-all", { method: "POST" });
+  },
 };

@@ -12,8 +12,8 @@ import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { defaultTemplates } from "./data/templates";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { useLocalStorage } from "./hooks/useLocalStorage";
-import type { AppUser, AuthSession, CompanyRecord, CompanySettings, Quote } from "./types/quote";
-import { authApi, quotesApi, sessionStorageApi, settingsApi } from "./utils/api";
+import type { AppNotification, AppUser, AuthSession, CompanyRecord, CompanySettings, Quote } from "./types/quote";
+import { authApi, notificationsApi, quotesApi, sessionStorageApi, settingsApi } from "./utils/api";
 import { formatDateTime } from "./utils/date";
 import { cloneQuote, createEmptyQuote, sanitizeQuote, touchQuote } from "./utils/quote";
 
@@ -27,6 +27,7 @@ function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [savedQuotes, setSavedQuotes] = useState<Quote[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [currentQuote, setCurrentQuote] = useState<Quote>(createEmptyQuote());
   const [isBooting, setIsBooting] = useState(true);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
@@ -63,6 +64,36 @@ function App() {
     hasHydratedQuoteRef.current = false;
     void loadQuotes(session.user);
   }, [session]);
+
+  useEffect(() => {
+    if (!session) {
+      setNotifications([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadNotifications = async () => {
+      try {
+        const items = await notificationsApi.list();
+        if (!cancelled) {
+          setNotifications(items);
+        }
+      } catch {
+        if (!cancelled) {
+          setNotifications([]);
+        }
+      }
+    };
+
+    void loadNotifications();
+    const intervalId = window.setInterval(() => void loadNotifications(), 30000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [route, session]);
 
   useEffect(() => {
     if (!session || !hasHydratedQuoteRef.current) {
@@ -382,6 +413,7 @@ function App() {
           onPrint={() => window.print()}
           theme={theme}
           onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+          unreadNotificationCount={notifications.filter((item) => !item.readAt).length}
         />
 
         <div className="mt-6 space-y-6">
@@ -460,7 +492,12 @@ function App() {
           )}
 
           {route === "settings" && session.user.role === "admin" && (
-            <SettingsPage currentUser={session.user} onCompanySaved={handleCompanySettingsSaved} />
+            <SettingsPage
+              currentUser={session.user}
+              onCompanySaved={handleCompanySettingsSaved}
+              notifications={notifications}
+              onNotificationsChange={setNotifications}
+            />
           )}
         </div>
       </div>

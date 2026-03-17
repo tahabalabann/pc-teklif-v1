@@ -175,6 +175,21 @@ export interface WalletSummary {
   requests: DepositRequest[];
 }
 
+export type NotificationType =
+  | "deposit_request_created"
+  | "deposit_request_approved"
+  | "deposit_request_rejected"
+  | "low_balance";
+
+export interface AppNotification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  readAt: string;
+  createdAt: string;
+}
+
 export interface CompanyRecord {
   id: string;
   companyName: string;

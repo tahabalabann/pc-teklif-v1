@@ -20,6 +20,7 @@ import {
   getOrganizationForUser,
   getSessionUser,
   approveDepositRequestForUser,
+  listNotificationsForUser,
   listAddressBookForUser,
   listCompaniesForUser,
   listDepositRequestsForUser,
@@ -27,6 +28,7 @@ import {
   listShipmentRecordsForUser,
   listSenderAddressBookForUser,
   listUsers,
+  markAllNotificationsReadForUser,
   rejectDepositRequestForUser,
   saveAddressBookEntryForUser,
   saveCompanyForUser,
@@ -141,6 +143,28 @@ app.put("/api/settings/company", requireAuth, requireAdmin, async (req, res) => 
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Firma ayarları güncellenemedi.",
+    });
+  }
+});
+
+app.get("/api/notifications", requireAuth, async (req, res) => {
+  try {
+    const notifications = await listNotificationsForUser(req.user);
+    return res.json({ notifications });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bildirimler alınamadı.",
+    });
+  }
+});
+
+app.post("/api/notifications/read-all", requireAuth, async (req, res) => {
+  try {
+    await markAllNotificationsReadForUser(req.user);
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bildirimler güncellenemedi.",
     });
   }
 });
