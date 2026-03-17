@@ -270,6 +270,7 @@ export const organizationsApi = {
 
 export const reportsApi = {
   dashboard: async () => (await apiRequest<{ summary: DashboardSummary }>("/api/reports/dashboard")).summary,
+  users: async () => (await apiRequest<{ users: AppUser[] }>("/api/reports/users")).users,
   companies: async () =>
     (await apiRequest<{ reports: CompanyReportSummary[] }>("/api/reports/companies")).reports,
   auditLogs: async () => (await apiRequest<{ logs: AuditLogEntry[] }>("/api/reports/audit-logs")).logs,

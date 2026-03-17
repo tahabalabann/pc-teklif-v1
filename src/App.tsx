@@ -29,8 +29,8 @@ import { cloneQuote, createEmptyQuote, sanitizeQuote, touchQuote } from "./utils
 
 const roleRouteAccess: Record<AppUser["role"], Array<"dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings">> = {
   admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "accounting", "settings"],
-  accounting: ["dashboard", "companies", "accounting"],
-  operations: ["dashboard", "quotes", "quote-detail", "shipping", "companies"],
+  accounting: ["companies", "accounting"],
+  operations: ["quotes", "quote-detail", "shipping", "companies"],
   shipping: ["shipping", "companies"],
   sales: ["quotes", "quote-detail", "companies"],
   staff: ["quotes", "quote-detail", "shipping", "companies"],

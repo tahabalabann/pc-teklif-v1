@@ -34,6 +34,7 @@ import {
   listDepositRequestsForUser,
   listOrganizationsForPlatformAdmin,
   listUsersForOrganizationAsPlatformAdmin,
+  listUsersForDashboard,
   listWalletLedgerForUser,
   listQuotesForUser,
   listShipmentRecordsForUser,
@@ -244,6 +245,17 @@ app.get("/api/reports/dashboard", requireAuth, requireAdmin, async (req, res) =>
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Dashboard özeti alınamadı.",
+    });
+  }
+});
+
+app.get("/api/reports/users", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const users = await listUsersForDashboard(req.user);
+    return res.json({ users });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Dashboard kullanıcıları alınamadı.",
     });
   }
 });

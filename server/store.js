@@ -319,7 +319,8 @@ export async function authenticateUser(email, password) {
         u."passwordHash" AS "passwordHash",
         u."passwordSalt" AS "passwordSalt",
         u."companyId" AS "companyId",
-        o."name" AS "companyName"
+        o."name" AS "companyName",
+        o."isActive" AS "companyIsActive"
       FROM "User" u
       LEFT JOIN "Organization" o ON o."id" = u."companyId"
       WHERE u."email" = ?
@@ -334,6 +335,10 @@ export async function authenticateUser(email, password) {
   }
 
   if (!Boolean(user.isActive ?? 1)) {
+    return null;
+  }
+
+  if (user.companyId && !Boolean(user.companyIsActive ?? 1)) {
     return null;
   }
 
@@ -927,8 +932,10 @@ export async function getSessionUser(token) {
         u."createdAt" AS "createdAt",
         u."balance" AS "balance",
         u."isPlatformAdmin" AS "isPlatformAdmin",
+        u."isActive" AS "isActive",
         u."companyId" AS "companyId",
-        o."name" AS "companyName"
+        o."name" AS "companyName",
+        o."isActive" AS "companyIsActive"
       FROM "Session" s
       JOIN "User" u ON u."id" = s."userId"
       LEFT JOIN "Organization" o ON o."id" = u."companyId"
@@ -949,6 +956,12 @@ export async function getSessionUser(token) {
   }
 
   if (!Boolean(row.isActive ?? 1)) {
+    await prisma.$executeRawUnsafe(`DELETE FROM "Session" WHERE "token" = ?`, token);
+    return null;
+  }
+
+  if (row.companyId && !Boolean(row.companyIsActive ?? 1)) {
+    await prisma.$executeRawUnsafe(`DELETE FROM "Session" WHERE "token" = ?`, token);
     return null;
   }
 
@@ -1004,11 +1017,12 @@ export async function listWalletLedgerForUser(user) {
       LEFT JOIN "User" target ON target."id" = w."userId"
       LEFT JOIN "User" creator ON creator."id" = w."createdByUserId"
       LEFT JOIN "Organization" company ON company."id" = w."companyId"
-      WHERE w."companyId" = ?
+      WHERE w."companyId" = ? OR ? = 1
       ORDER BY w."createdAt" DESC
       LIMIT 200
     `,
     user.companyId,
+    user.isPlatformAdmin ? 1 : 0,
   );
 
   return rows.map((row) => ({
@@ -1066,12 +1080,38 @@ export async function listAuditLogsForUser(user) {
   }));
 }
 
+export async function listUsersForDashboard(currentUser) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        u."id" AS "id",
+        u."name" AS "name",
+        u."email" AS "email",
+        u."role" AS "role",
+        u."createdAt" AS "createdAt",
+        u."balance" AS "balance",
+        u."isPlatformAdmin" AS "isPlatformAdmin",
+        u."isActive" AS "isActive",
+        u."companyId" AS "companyId",
+        o."name" AS "companyName"
+      FROM "User" u
+      LEFT JOIN "Organization" o ON o."id" = u."companyId"
+      WHERE u."companyId" = ? OR ? = 1
+      ORDER BY u."createdAt" ASC
+    `,
+    currentUser.companyId,
+    currentUser.isPlatformAdmin ? 1 : 0,
+  );
+
+  return rows.map(publicUser);
+}
+
 export async function getDashboardSummaryForUser(user) {
   const todayPrefix = new Date().toISOString().slice(0, 10);
   const quotes = await listQuotesForUser(user);
   const shipments = await listShipmentRecordsForUser(user);
   const requests = await listDepositRequestsForUser(user);
-  const users = await listUsers(user);
+  const users = await listUsersForDashboard(user);
   const quoteShipmentsToday = quotes.filter(
     (item) => item?.geliverShipment && String(item.geliverShipment.createdAt || item.updatedAt || "").startsWith(todayPrefix),
   ).length;
@@ -1082,7 +1122,9 @@ export async function getDashboardSummaryForUser(user) {
       shipments.filter((item) => String(item.createdAt || item.updatedAt || "").startsWith(todayPrefix)).length +
       quoteShipmentsToday,
     pendingDepositRequests: requests.filter((item) => item.status === "pending").length,
-    lowBalanceUsers: users.filter((item) => item.isActive !== false && Number(item.balance || 0) < 150).length,
+    lowBalanceUsers: users.filter(
+      (item) => item.isActive !== false && item.role !== "admin" && Number(item.balance || 0) < 150,
+    ).length,
   };
 }
 

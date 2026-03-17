@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AppUser, AuditLogEntry, CompanyReportSummary, DashboardSummary, WalletLedgerEntry } from "../../types/quote";
-import { reportsApi, usersApi } from "../../utils/api";
+import { reportsApi } from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -45,19 +45,19 @@ export function DashboardPage() {
     setError("");
 
     try {
-      const [summaryResult, reportsResult, auditResult, walletResult, usersResult] = await Promise.all([
+      const [summaryResult, usersResult, reportsResult, auditResult, walletResult] = await Promise.all([
         reportsApi.dashboard(),
+        reportsApi.users(),
         reportsApi.companies(),
         reportsApi.auditLogs(),
         reportsApi.walletLedger(),
-        usersApi.list(),
       ]);
 
       setSummary(summaryResult);
+      setUsers(usersResult);
       setCompanyReports(reportsResult);
       setAuditLogs(auditResult);
       setWalletLedger(walletResult);
-      setUsers(usersResult);
       setSelectedUserId((current) => current || usersResult[0]?.id || "");
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Dashboard verileri alınamadı.");

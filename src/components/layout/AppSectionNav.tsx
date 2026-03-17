@@ -19,7 +19,7 @@ const routes: Array<{
     id: "dashboard",
     label: "Dashboard",
     description: "Hızlı özet ve yönetim raporları",
-    allowedRoles: ["admin", "accounting", "operations"],
+    allowedRoles: ["admin"],
   },
   {
     id: "quotes",
