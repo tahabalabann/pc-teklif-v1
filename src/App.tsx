@@ -408,6 +408,16 @@ function App() {
     }
   };
 
+  const handleMarkAllNotificationsRead = async () => {
+    await notificationsApi.markAllRead();
+    setNotifications((prev) =>
+      prev.map((notification) => ({
+        ...notification,
+        readAt: notification.readAt || new Date().toISOString(),
+      })),
+    );
+  };
+
   const saveStatusText = (() => {
     if (loadingQuotes) {
       return "Teklifler yükleniyor...";
@@ -451,7 +461,9 @@ function App() {
       <div className="screen-only mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
         <Header
           currentUser={session.user}
+          notifications={notifications}
           onLogout={handleLogout}
+          onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
           onPrint={() => window.print()}
           theme={theme}
           onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
