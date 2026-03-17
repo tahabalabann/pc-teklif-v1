@@ -61,6 +61,20 @@ export interface GeliverShipment {
   shipmentPrice?: number;
 }
 
+export interface ShipmentRecord {
+  id: string;
+  standalone: boolean;
+  quoteId: string;
+  quoteNo: string;
+  customerName: string;
+  companyName: string;
+  recipientName: string;
+  providerName: string;
+  createdAt: string;
+  updatedAt: string;
+  shipment: GeliverShipment;
+}
+
 export interface GeliverProviderService {
   code: string;
   name: string;

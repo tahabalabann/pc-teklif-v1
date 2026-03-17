@@ -7,6 +7,7 @@ import type {
   LocationOption,
   Quote,
   SavedRecipientAddress,
+  ShipmentRecord,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -162,4 +163,15 @@ export const companiesApi = {
   delete: async (companyId: string) => {
     await apiRequest<{ ok: true }>(`/api/companies/${companyId}`, { method: "DELETE" });
   },
+};
+
+export const shipmentRecordsApi = {
+  list: async () => (await apiRequest<{ shipments: ShipmentRecord[] }>("/api/shipment-records")).shipments,
+  save: async (shipment: ShipmentRecord) =>
+    (
+      await apiRequest<{ shipment: ShipmentRecord }>("/api/shipment-records", {
+        method: "POST",
+        body: JSON.stringify({ shipment }),
+      })
+    ).shipment,
 };

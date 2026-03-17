@@ -33,6 +33,7 @@ model User {
   addressBook       AddressBookEntry[]
   senderAddressBook SenderAddressBookEntry[]
   companies         CompanyDirectoryEntry[]
+  shipmentRecords   ShipmentRecord[]
   sessions          Session[]
 }
 
@@ -74,10 +75,20 @@ model CompanyDirectoryEntry {
   user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 }
 
+model ShipmentRecord {
+  id          String @id
+  ownerUserId String
+  data        String
+  createdAt   String
+  updatedAt   String
+  user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
 model Session {
   token      String @id
   userId     String
   createdAt  String
   lastSeenAt String
+  expiresAt  String?
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

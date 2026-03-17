@@ -79,6 +79,17 @@ async function ensureSchema() {
   `);
 
   await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ShipmentRecord" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "ownerUserId" TEXT NOT NULL,
+      "data" TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL,
+      CONSTRAINT "ShipmentRecord_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  `);
+
+  await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Session" (
       "token" TEXT NOT NULL PRIMARY KEY,
       "userId" TEXT NOT NULL,
@@ -685,6 +696,61 @@ export async function listCompaniesForUser(user) {
   );
 
   return rows.map((row) => JSON.parse(row.data));
+}
+
+export async function listShipmentRecordsForUser(user) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT s."data" AS "data"
+      FROM "ShipmentRecord" s
+      JOIN "User" u ON u."id" = s."ownerUserId"
+      WHERE u."companyId" = ?
+      ORDER BY s."updatedAt" DESC
+    `,
+    user.companyId,
+  );
+
+  return rows.map((row) => JSON.parse(row.data));
+}
+
+export async function saveShipmentRecordForUser(user, shipmentRecord) {
+  const now = new Date().toISOString();
+  const payload = {
+    ...shipmentRecord,
+    id: shipmentRecord.id || randomUUID(),
+    createdAt: shipmentRecord.createdAt || now,
+    updatedAt: now,
+  };
+
+  await assertOwnedByCompanyOrThrow("ShipmentRecord", payload.id, user.companyId, "Bu kargo kaydı başka bir firmaya ait.");
+
+  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "ShipmentRecord" WHERE "id" = ? LIMIT 1`, payload.id);
+  if (existingRows[0]) {
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE "ShipmentRecord"
+        SET "data" = ?, "updatedAt" = ?
+        WHERE "id" = ?
+      `,
+      JSON.stringify(payload),
+      payload.updatedAt,
+      payload.id,
+    );
+  } else {
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO "ShipmentRecord" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      payload.id,
+      user.id,
+      JSON.stringify(payload),
+      payload.createdAt,
+      payload.updatedAt,
+    );
+  }
+
+  return payload;
 }
 
 export async function saveCompanyForUser(user, company) {

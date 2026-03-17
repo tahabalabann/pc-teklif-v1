@@ -8,6 +8,8 @@ import { Card } from "../ui/Card";
 interface GeliverShippingPanelProps {
   quote: Quote;
   onChange: (patch: Partial<Quote>) => void;
+  mode?: "quote" | "standalone";
+  onShipmentCreated?: (shipment: ShipmentResponse, quoteSnapshot: Quote) => void;
 }
 
 interface ShipmentResponse {
@@ -37,7 +39,12 @@ function safeJsonParse(text: string) {
   }
 }
 
-export function GeliverShippingPanel({ quote, onChange }: GeliverShippingPanelProps) {
+export function GeliverShippingPanel({
+  quote,
+  onChange,
+  mode = "quote",
+  onShipmentCreated,
+}: GeliverShippingPanelProps) {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
   const [error, setError] = useState("");
@@ -293,10 +300,17 @@ export function GeliverShippingPanel({ quote, onChange }: GeliverShippingPanelPr
         throw new Error(payload.error || payload.message || "Geliver gönderisi oluşturulamadı.");
       }
 
+      const nextQuote = {
+        ...quote,
+        geliverShipment: payload.shipment,
+        shipping: payload.shipment.shipmentPrice ?? quote.shipping,
+      };
+
       onChange({
         geliverShipment: payload.shipment,
         shipping: payload.shipment.shipmentPrice ?? quote.shipping,
       });
+      onShipmentCreated?.(payload.shipment, nextQuote);
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : "Beklenmeyen bir hata oluştu.");
     } finally {
@@ -457,7 +471,7 @@ export function GeliverShippingPanel({ quote, onChange }: GeliverShippingPanelPr
           </div>
         </div>
         <Button onClick={createShipment} type="button" variant="primary" disabled={loading || booting}>
-          {loading ? "Oluşturuluyor..." : "Geliver Gönderisi Oluştur"}
+          {loading ? "Oluşturuluyor..." : mode === "standalone" ? "Bağımsız Kargo Oluştur" : "Geliver Gönderisi Oluştur"}
         </Button>
       </div>
 

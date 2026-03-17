@@ -18,11 +18,13 @@ import {
   listAddressBookForUser,
   listCompaniesForUser,
   listQuotesForUser,
+  listShipmentRecordsForUser,
   listSenderAddressBookForUser,
   listUsers,
   saveAddressBookEntryForUser,
   saveCompanyForUser,
   saveQuoteForUser,
+  saveShipmentRecordForUser,
   saveSenderAddressBookEntryForUser,
   updateOrganizationForUser,
 } from "./store.js";
@@ -216,6 +218,26 @@ app.delete("/api/sender-address-book/:id", requireAuth, async (req, res) => {
 
 app.get("/api/companies", requireAuth, async (req, res) => {
   res.json({ companies: await listCompaniesForUser(req.user) });
+});
+
+app.get("/api/shipment-records", requireAuth, async (req, res) => {
+  res.json({ shipments: await listShipmentRecordsForUser(req.user) });
+});
+
+app.post("/api/shipment-records", requireAuth, async (req, res) => {
+  const shipment = req.body?.shipment;
+  if (!shipment?.shipment) {
+    return res.status(400).json({ error: "Kargo kaydı bulunamadı." });
+  }
+
+  try {
+    const savedShipment = await saveShipmentRecordForUser(req.user, shipment);
+    return res.status(201).json({ shipment: savedShipment });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Kargo kaydı kaydedilemedi.",
+    });
+  }
 });
 
 app.post("/api/companies", requireAuth, async (req, res) => {
