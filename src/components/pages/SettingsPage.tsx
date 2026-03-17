@@ -71,14 +71,19 @@ export function SettingsPage({
   const [companyMessage, setCompanyMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
   const [organizationMessage, setOrganizationMessage] = useState("");
-  const [error, setError] = useState("");
+  const [pageError, setPageError] = useState("");
+  const [companyError, setCompanyError] = useState("");
+  const [userError, setUserError] = useState("");
+  const [organizationError, setOrganizationError] = useState("");
+  const [requestError, setRequestError] = useState("");
+  const [notificationError, setNotificationError] = useState("");
 
   useEffect(() => {
     let mounted = true;
 
     const loadData = async () => {
       setLoading(true);
-      setError("");
+      setPageError("");
 
       try {
         const [companySettings, companyUsers, requests, platformOrganizations] = await Promise.all([
@@ -101,7 +106,7 @@ export function SettingsPage({
           return;
         }
 
-        setError(caughtError instanceof Error ? caughtError.message : "Ayarlar yüklenemedi.");
+        setPageError(caughtError instanceof Error ? caughtError.message : "Ayarlar yüklenemedi.");
       } finally {
         if (mounted) {
           setLoading(false);
@@ -120,7 +125,7 @@ export function SettingsPage({
     event.preventDefault();
     setCompanySaving(true);
     setCompanyMessage("");
-    setError("");
+    setCompanyError("");
 
     try {
       const saved = await settingsApi.saveCompany(company);
@@ -128,7 +133,7 @@ export function SettingsPage({
       onCompanySaved(saved);
       setCompanyMessage("Firma ayarları kaydedildi.");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Firma ayarları kaydedilemedi.");
+      setCompanyError(caughtError instanceof Error ? caughtError.message : "Firma ayarları kaydedilemedi.");
     } finally {
       setCompanySaving(false);
     }
@@ -138,7 +143,7 @@ export function SettingsPage({
     event.preventDefault();
     setUserSaving(true);
     setUserMessage("");
-    setError("");
+    setUserError("");
 
     try {
       const user = await usersApi.create(userForm);
@@ -146,7 +151,7 @@ export function SettingsPage({
       setUserForm(emptyUserForm);
       setUserMessage("Yeni kullanıcı eklendi.");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Kullanıcı oluşturulamadı.");
+      setUserError(caughtError instanceof Error ? caughtError.message : "Kullanıcı oluşturulamadı.");
     } finally {
       setUserSaving(false);
     }
@@ -161,7 +166,7 @@ export function SettingsPage({
       return;
     }
 
-    setError("");
+    setUserError("");
     setUserMessage("");
 
     try {
@@ -169,7 +174,7 @@ export function SettingsPage({
       setUsers((prev) => prev.filter((item) => item.id !== user.id));
       setUserMessage(`${user.name} kullanıcısı silindi.`);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Kullanıcı silinemedi.");
+      setUserError(caughtError instanceof Error ? caughtError.message : "Kullanıcı silinemedi.");
     }
   };
 
@@ -177,7 +182,7 @@ export function SettingsPage({
     event.preventDefault();
     setOrganizationSaving(true);
     setOrganizationMessage("");
-    setError("");
+    setOrganizationError("");
 
     try {
       const organization = await organizationsApi.create(organizationForm);
@@ -185,14 +190,14 @@ export function SettingsPage({
       setOrganizationForm(emptyOrganizationForm);
       setOrganizationMessage("Yeni firma ve ilk admin hesabı oluşturuldu.");
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Firma oluşturulamadı.");
+      setOrganizationError(caughtError instanceof Error ? caughtError.message : "Firma oluşturulamadı.");
     } finally {
       setOrganizationSaving(false);
     }
   };
 
   const handleApproveRequest = async (requestId: string) => {
-    setError("");
+    setRequestError("");
 
     try {
       const result = await walletApi.approveRequest(requestId);
@@ -203,23 +208,23 @@ export function SettingsPage({
         ),
       );
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Talep onaylanamadı.");
+      setRequestError(caughtError instanceof Error ? caughtError.message : "Talep onaylanamadı.");
     }
   };
 
   const handleRejectRequest = async (requestId: string) => {
-    setError("");
+    setRequestError("");
 
     try {
       const request = await walletApi.rejectRequest(requestId);
       setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? request : item)));
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Talep reddedilemedi.");
+      setRequestError(caughtError instanceof Error ? caughtError.message : "Talep reddedilemedi.");
     }
   };
 
   const handleMarkNotificationsRead = async () => {
-    setError("");
+    setNotificationError("");
 
     try {
       await notificationsApi.markAllRead();
@@ -230,7 +235,9 @@ export function SettingsPage({
         })),
       );
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Bildirimler güncellenemedi.");
+      setNotificationError(
+        caughtError instanceof Error ? caughtError.message : "Bildirimler güncellenemedi.",
+      );
     }
   };
 
@@ -244,6 +251,12 @@ export function SettingsPage({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
+      {pageError && (
+        <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 xl:col-span-2">
+          {pageError}
+        </div>
+      )}
+
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -341,9 +354,9 @@ export function SettingsPage({
             />
           </label>
 
-          {error && (
+          {companyError && (
             <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
-              {error}
+              {companyError}
             </div>
           )}
           {companyMessage && (
@@ -376,50 +389,75 @@ export function SettingsPage({
           </div>
         </div>
 
-        <form className="mt-5 grid gap-3" onSubmit={handleCreateUser}>
-          <input
-            className="field"
-            placeholder="Ad soyad"
-            value={userForm.name}
-            onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
-          />
-          <input
-            className="field"
-            placeholder="E-posta"
-            type="email"
-            value={userForm.email}
-            onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
-          />
-          <input
-            className="field"
-            placeholder="Geçici parola"
-            type="password"
-            value={userForm.password}
-            onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
-          />
-          <select
-            className="field"
-            value={userForm.role}
-            onChange={(event) =>
-              setUserForm((prev) => ({
-                ...prev,
-                role: event.target.value === "admin" ? "admin" : "staff",
-              }))
-            }
-          >
-            <option value="staff">Personel</option>
-            <option value="admin">Admin</option>
-          </select>
+        <form className="mt-5 grid gap-4 md:grid-cols-2" onSubmit={handleCreateUser}>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">Ad soyad</span>
+            <input
+              className="field"
+              placeholder="Örn. Ahmet Yılmaz"
+              value={userForm.name}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, name: event.target.value }))}
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">E-posta</span>
+            <input
+              className="field"
+              placeholder="ornek@firma.com"
+              type="email"
+              value={userForm.email}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, email: event.target.value }))}
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">Geçici parola</span>
+            <input
+              className="field"
+              placeholder="İlk girişte paylaşılacak parola"
+              type="password"
+              value={userForm.password}
+              onChange={(event) => setUserForm((prev) => ({ ...prev, password: event.target.value }))}
+            />
+          </label>
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">Yetki</span>
+            <select
+              className="field"
+              value={userForm.role}
+              onChange={(event) =>
+                setUserForm((prev) => ({
+                  ...prev,
+                  role: event.target.value === "admin" ? "admin" : "staff",
+                }))
+              }
+            >
+              <option value="staff">Personel</option>
+              <option value="admin">Admin</option>
+            </select>
+          </label>
+
+          <div className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-3 text-sm text-ink-600 md:col-span-2">
+            Oluşturulan kullanıcı yalnızca bağlı olduğu firmanın tekliflerini, kargo kayıtlarını ve
+            bakiyesini görür. Admin yetkisi verilen kullanıcı firma içi yönetim işlemlerini de yapabilir.
+          </div>
+
+          {userError && (
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
+              {userError}
+            </div>
+          )}
 
           {userMessage && (
-            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
               {userMessage}
             </div>
           )}
 
-          <Button disabled={userSaving} type="submit" variant="secondary">
-            {userSaving ? "Ekleniyor..." : "Kullanıcı Ekle"}
-          </Button>
+          <div className="md:col-span-2">
+            <Button disabled={userSaving} type="submit" variant="secondary">
+              {userSaving ? "Kullanıcı ekleniyor..." : "Kullanıcı Ekle"}
+            </Button>
+          </div>
         </form>
 
         <div className="mt-6 space-y-3">
@@ -480,40 +518,63 @@ export function SettingsPage({
           </div>
 
           <form className="mt-5 grid gap-3 md:grid-cols-2" onSubmit={handleCreateOrganization}>
-            <input
-              className="field"
-              placeholder="Firma adı"
-              value={organizationForm.companyName}
-              onChange={(event) =>
-                setOrganizationForm((prev) => ({ ...prev, companyName: event.target.value }))
-              }
-            />
-            <input
-              className="field"
-              placeholder="İlk admin adı"
-              value={organizationForm.adminName}
-              onChange={(event) =>
-                setOrganizationForm((prev) => ({ ...prev, adminName: event.target.value }))
-              }
-            />
-            <input
-              className="field"
-              placeholder="İlk admin e-posta"
-              type="email"
-              value={organizationForm.adminEmail}
-              onChange={(event) =>
-                setOrganizationForm((prev) => ({ ...prev, adminEmail: event.target.value }))
-              }
-            />
-            <input
-              className="field"
-              placeholder="İlk admin parola"
-              type="password"
-              value={organizationForm.adminPassword}
-              onChange={(event) =>
-                setOrganizationForm((prev) => ({ ...prev, adminPassword: event.target.value }))
-              }
-            />
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">Firma adı</span>
+              <input
+                className="field"
+                placeholder="Örn. Örnek Teknoloji"
+                value={organizationForm.companyName}
+                onChange={(event) =>
+                  setOrganizationForm((prev) => ({ ...prev, companyName: event.target.value }))
+                }
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">İlk admin adı</span>
+              <input
+                className="field"
+                placeholder="Örn. Mehmet Demir"
+                value={organizationForm.adminName}
+                onChange={(event) =>
+                  setOrganizationForm((prev) => ({ ...prev, adminName: event.target.value }))
+                }
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">İlk admin e-posta</span>
+              <input
+                className="field"
+                placeholder="admin@firma.com"
+                type="email"
+                value={organizationForm.adminEmail}
+                onChange={(event) =>
+                  setOrganizationForm((prev) => ({ ...prev, adminEmail: event.target.value }))
+                }
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-ink-700">İlk admin parola</span>
+              <input
+                className="field"
+                placeholder="İlk girişte kullanılacak parola"
+                type="password"
+                value={organizationForm.adminPassword}
+                onChange={(event) =>
+                  setOrganizationForm((prev) => ({ ...prev, adminPassword: event.target.value }))
+                }
+              />
+            </label>
+
+            <div className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-3 text-sm text-ink-600 md:col-span-2">
+              Buradan oluşturulan firma sisteme bağımsız tenant olarak eklenir. Kendi kullanıcıları,
+              teklifleri ve kargo kayıtları diğer firmalardan ayrı tutulur.
+            </div>
+
+            {organizationError && (
+              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
+                {organizationError}
+              </div>
+            )}
 
             {organizationMessage && (
               <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
@@ -568,6 +629,12 @@ export function SettingsPage({
         </div>
 
         <div className="mt-5 space-y-3">
+          {requestError && (
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {requestError}
+            </div>
+          )}
+
           {depositRequests.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-ink-300 px-4 py-6 text-sm text-ink-500">
               Henüz bakiye yükleme talebi yok.
@@ -641,6 +708,12 @@ export function SettingsPage({
         </div>
 
         <div className="mt-5 space-y-3">
+          {notificationError && (
+            <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {notificationError}
+            </div>
+          )}
+
           {notifications.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-ink-300 px-4 py-6 text-sm text-ink-500">
               Henüz bildirim yok.

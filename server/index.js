@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { turkeyCities } from "./turkeyCities.js";
 import {
   authenticateUser,
+  createOrganizationWithAdmin,
   createSessionForUser,
   createUser,
   createDepositRequestForUser,
@@ -13,6 +14,7 @@ import {
   deleteQuoteForUser,
   deleteShipmentRecordForUser,
   deleteSenderAddressBookEntryForUser,
+  deleteUserForAdmin,
   deleteSession,
   disconnectStore,
   ensureSeedAdmin,
@@ -24,6 +26,7 @@ import {
   listAddressBookForUser,
   listCompaniesForUser,
   listDepositRequestsForUser,
+  listOrganizationsForPlatformAdmin,
   listQuotesForUser,
   listShipmentRecordsForUser,
   listSenderAddressBookForUser,
@@ -49,9 +52,14 @@ app.set("trust proxy", 1);
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 1000,
+    max: 5000,
     standardHeaders: true,
     legacyHeaders: false,
+    keyGenerator: (req) => {
+      const authorization = req.headers.authorization || "";
+      const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+      return token || req.ip || "anonymous";
+    },
     message: { error: "Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin." },
   }),
 );
@@ -123,6 +131,38 @@ app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
   } catch (error) {
     return res.status(400).json({
       error: error instanceof Error ? error.message : "Kullanıcı oluşturulamadı.",
+    });
+  }
+});
+
+app.delete("/api/users/:id", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    await deleteUserForAdmin(req.user, req.params.id);
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Kullanıcı silinemedi.",
+    });
+  }
+});
+
+app.get("/api/platform/organizations", requireAuth, requirePlatformAdmin, async (_req, res) => {
+  res.json({ organizations: await listOrganizationsForPlatformAdmin() });
+});
+
+app.post("/api/platform/organizations", requireAuth, requirePlatformAdmin, async (req, res) => {
+  try {
+    const organization = await createOrganizationWithAdmin({
+      companyName: req.body?.companyName,
+      adminName: req.body?.adminName,
+      adminEmail: req.body?.adminEmail,
+      adminPassword: req.body?.adminPassword,
+    });
+
+    return res.status(201).json({ organization });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Firma oluşturulamadı.",
     });
   }
 });
@@ -494,6 +534,14 @@ function requireAuth(req, res, next) {
 function requireAdmin(req, res, next) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ error: "Bu işlem için admin yetkisi gerekiyor." });
+  }
+
+  next();
+}
+
+function requirePlatformAdmin(req, res, next) {
+  if (!req.user?.isPlatformAdmin) {
+    return res.status(403).json({ error: "Bu işlem için platform admin yetkisi gerekiyor." });
   }
 
   next();
