@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react";
 
-export type AppRoute = "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings";
+export type AppRoute =
+  | "quotes"
+  | "quote-detail"
+  | "shipping"
+  | "companies"
+  | "accounting"
+  | "settings"
+  | "platform";
 
-const validRoutes: AppRoute[] = ["quotes", "quote-detail", "shipping", "companies", "accounting", "settings"];
+const validRoutes: AppRoute[] = [
+  "quotes",
+  "quote-detail",
+  "shipping",
+  "companies",
+  "accounting",
+  "settings",
+  "platform",
+];
 
 function normalizeRoute(hash: string): AppRoute {
   const value = hash.replace(/^#/, "") as AppRoute;

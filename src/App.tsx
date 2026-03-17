@@ -4,6 +4,7 @@ import { AppSectionNav } from "./components/layout/AppSectionNav";
 import { Header } from "./components/layout/Header";
 import { AccountingPage } from "./components/pages/AccountingPage";
 import { CompaniesPage } from "./components/pages/CompaniesPage";
+import { PlatformAdminPage } from "./components/pages/PlatformAdminPage";
 import { QuoteListPage } from "./components/pages/QuoteListPage";
 import { QuoteWorkspacePage } from "./components/pages/QuoteWorkspacePage";
 import { SettingsPage } from "./components/pages/SettingsPage";
@@ -420,6 +421,7 @@ function App() {
           <AppSectionNav
             currentRoute={route}
             isAdmin={session.user.role === "admin"}
+            isPlatformAdmin={session.user.isPlatformAdmin}
             onRouteChange={setRoute}
           />
 
@@ -498,6 +500,10 @@ function App() {
               notifications={notifications}
               onNotificationsChange={setNotifications}
             />
+          )}
+
+          {route === "platform" && session.user.isPlatformAdmin && (
+            <PlatformAdminPage currentUser={session.user} />
           )}
         </div>
       </div>

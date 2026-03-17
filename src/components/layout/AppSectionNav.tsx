@@ -4,9 +4,16 @@ interface AppSectionNavProps {
   currentRoute: AppRoute;
   onRouteChange: (route: AppRoute) => void;
   isAdmin: boolean;
+  isPlatformAdmin?: boolean;
 }
 
-const routes: Array<{ id: AppRoute; label: string; description: string; adminOnly?: boolean }> = [
+const routes: Array<{
+  id: AppRoute;
+  label: string;
+  description: string;
+  adminOnly?: boolean;
+  platformOnly?: boolean;
+}> = [
   {
     id: "quotes",
     label: "Teklifler",
@@ -25,23 +32,41 @@ const routes: Array<{ id: AppRoute; label: string; description: string; adminOnl
   {
     id: "accounting",
     label: "Muhasebe",
-    description: "Aylık ve toplam kâr özeti",
+    description: "Aylık ve toplam kar özeti",
     adminOnly: true,
   },
   {
     id: "settings",
     label: "Ayarlar",
-    description: "Firma profili ve kullanıcı yönetimi",
+    description: "Firma profili ve firma içi kullanıcılar",
     adminOnly: true,
+  },
+  {
+    id: "platform",
+    label: "Site Yönetimi",
+    description: "Yeni firma açma ve platform yönetimi",
+    adminOnly: true,
+    platformOnly: true,
   },
 ];
 
-export function AppSectionNav({ currentRoute, onRouteChange, isAdmin }: AppSectionNavProps) {
+export function AppSectionNav({
+  currentRoute,
+  onRouteChange,
+  isAdmin,
+  isPlatformAdmin = false,
+}: AppSectionNavProps) {
   return (
     <nav className="print:hidden">
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
         {routes
-          .filter((route) => !route.adminOnly || isAdmin)
+          .filter((route) => {
+            if (route.platformOnly) {
+              return isPlatformAdmin;
+            }
+
+            return !route.adminOnly || isAdmin;
+          })
           .map((route) => {
             const active = currentRoute === route.id;
             return (

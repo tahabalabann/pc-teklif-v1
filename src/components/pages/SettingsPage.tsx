@@ -1,18 +1,6 @@
 import { useEffect, useState } from "react";
-import type {
-  AppNotification,
-  AppUser,
-  CompanySettings,
-  DepositRequest,
-  OrganizationSummary,
-} from "../../types/quote";
-import {
-  notificationsApi,
-  organizationsApi,
-  settingsApi,
-  usersApi,
-  walletApi,
-} from "../../utils/api";
+import type { AppNotification, AppUser, CompanySettings, DepositRequest } from "../../types/quote";
+import { notificationsApi, settingsApi, usersApi, walletApi } from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -45,13 +33,6 @@ const emptyUserForm = {
   role: "staff" as "admin" | "staff",
 };
 
-const emptyOrganizationForm = {
-  companyName: "",
-  adminName: "",
-  adminEmail: "",
-  adminPassword: "",
-};
-
 export function SettingsPage({
   currentUser,
   onCompanySaved,
@@ -61,20 +42,15 @@ export function SettingsPage({
   const [company, setCompany] = useState<CompanySettings>(emptyCompanySettings);
   const [users, setUsers] = useState<AppUser[]>([]);
   const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
-  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [userForm, setUserForm] = useState(emptyUserForm);
-  const [organizationForm, setOrganizationForm] = useState(emptyOrganizationForm);
   const [loading, setLoading] = useState(true);
   const [companySaving, setCompanySaving] = useState(false);
   const [userSaving, setUserSaving] = useState(false);
-  const [organizationSaving, setOrganizationSaving] = useState(false);
   const [companyMessage, setCompanyMessage] = useState("");
   const [userMessage, setUserMessage] = useState("");
-  const [organizationMessage, setOrganizationMessage] = useState("");
   const [pageError, setPageError] = useState("");
   const [companyError, setCompanyError] = useState("");
   const [userError, setUserError] = useState("");
-  const [organizationError, setOrganizationError] = useState("");
   const [requestError, setRequestError] = useState("");
   const [notificationError, setNotificationError] = useState("");
 
@@ -86,11 +62,10 @@ export function SettingsPage({
       setPageError("");
 
       try {
-        const [companySettings, companyUsers, requests, platformOrganizations] = await Promise.all([
+        const [companySettings, companyUsers, requests] = await Promise.all([
           settingsApi.getCompany(),
           usersApi.list(),
           walletApi.listRequests(),
-          currentUser.isPlatformAdmin ? organizationsApi.list() : Promise.resolve([]),
         ]);
 
         if (!mounted) {
@@ -100,7 +75,6 @@ export function SettingsPage({
         setCompany(companySettings);
         setUsers(companyUsers);
         setDepositRequests(requests);
-        setOrganizations(platformOrganizations);
       } catch (caughtError) {
         if (!mounted) {
           return;
@@ -119,7 +93,7 @@ export function SettingsPage({
     return () => {
       mounted = false;
     };
-  }, [currentUser.isPlatformAdmin]);
+  }, []);
 
   const handleSaveCompany = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -175,24 +149,6 @@ export function SettingsPage({
       setUserMessage(`${user.name} kullanıcısı silindi.`);
     } catch (caughtError) {
       setUserError(caughtError instanceof Error ? caughtError.message : "Kullanıcı silinemedi.");
-    }
-  };
-
-  const handleCreateOrganization = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setOrganizationSaving(true);
-    setOrganizationMessage("");
-    setOrganizationError("");
-
-    try {
-      const organization = await organizationsApi.create(organizationForm);
-      setOrganizations((prev) => [organization, ...prev]);
-      setOrganizationForm(emptyOrganizationForm);
-      setOrganizationMessage("Yeni firma ve ilk admin hesabı oluşturuldu.");
-    } catch (caughtError) {
-      setOrganizationError(caughtError instanceof Error ? caughtError.message : "Firma oluşturulamadı.");
-    } finally {
-      setOrganizationSaving(false);
     }
   };
 
@@ -274,11 +230,7 @@ export function SettingsPage({
             <p className="font-semibold text-ink-900">{currentUser.name}</p>
             <p>{currentUser.companyName}</p>
             <p className="text-xs uppercase tracking-[0.16em] text-ink-500">
-              {currentUser.isPlatformAdmin
-                ? "Platform Admin"
-                : currentUser.role === "admin"
-                  ? "Admin"
-                  : "Personel"}
+              {currentUser.role === "admin" ? "Firma Admini" : "Personel"}
             </p>
           </div>
         </div>
@@ -379,9 +331,9 @@ export function SettingsPage({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
               Kullanıcı Yönetimi
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-ink-900">Firma kullanıcıları</h2>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">Firma içi kullanıcılar</h2>
             <p className="mt-2 text-sm text-ink-600">
-              Mevcut firmaya bağlı kullanıcıları ekleyin veya kaldırın.
+              Bu alan yalnızca mevcut firmanın personel ve admin hesapları içindir.
             </p>
           </div>
           <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">
@@ -437,8 +389,8 @@ export function SettingsPage({
           </label>
 
           <div className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-3 text-sm text-ink-600 md:col-span-2">
-            Oluşturulan kullanıcı yalnızca bağlı olduğu firmanın tekliflerini, kargo kayıtlarını ve
-            bakiyesini görür. Admin yetkisi verilen kullanıcı firma içi yönetim işlemlerini de yapabilir.
+            Buradan açılan kullanıcılar sadece bu firmaya bağlı olur. Farklı firma açma işlemi artık
+            ayrı `Site Yönetimi` panelindedir.
           </div>
 
           {userError && (
@@ -500,127 +452,16 @@ export function SettingsPage({
         </div>
       </Card>
 
-      {currentUser.isPlatformAdmin && (
-        <Card className="p-6 xl:col-span-2">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
-                Firma Yönetimi
-              </p>
-              <h2 className="mt-2 text-xl font-semibold text-ink-900">
-                Yeni firma ve ilk admin oluştur
-              </h2>
-              <p className="mt-2 text-sm text-ink-600">
-                Bu panelden sisteme bağımsız yeni firmalar ekleyebilir ve ilk admin hesabını
-                oluşturabilirsiniz.
-              </p>
-            </div>
-          </div>
-
-          <form className="mt-5 grid gap-3 md:grid-cols-2" onSubmit={handleCreateOrganization}>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">Firma adı</span>
-              <input
-                className="field"
-                placeholder="Örn. Örnek Teknoloji"
-                value={organizationForm.companyName}
-                onChange={(event) =>
-                  setOrganizationForm((prev) => ({ ...prev, companyName: event.target.value }))
-                }
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">İlk admin adı</span>
-              <input
-                className="field"
-                placeholder="Örn. Mehmet Demir"
-                value={organizationForm.adminName}
-                onChange={(event) =>
-                  setOrganizationForm((prev) => ({ ...prev, adminName: event.target.value }))
-                }
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">İlk admin e-posta</span>
-              <input
-                className="field"
-                placeholder="admin@firma.com"
-                type="email"
-                value={organizationForm.adminEmail}
-                onChange={(event) =>
-                  setOrganizationForm((prev) => ({ ...prev, adminEmail: event.target.value }))
-                }
-              />
-            </label>
-            <label className="space-y-2">
-              <span className="text-sm font-medium text-ink-700">İlk admin parola</span>
-              <input
-                className="field"
-                placeholder="İlk girişte kullanılacak parola"
-                type="password"
-                value={organizationForm.adminPassword}
-                onChange={(event) =>
-                  setOrganizationForm((prev) => ({ ...prev, adminPassword: event.target.value }))
-                }
-              />
-            </label>
-
-            <div className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-3 text-sm text-ink-600 md:col-span-2">
-              Buradan oluşturulan firma sisteme bağımsız tenant olarak eklenir. Kendi kullanıcıları,
-              teklifleri ve kargo kayıtları diğer firmalardan ayrı tutulur.
-            </div>
-
-            {organizationError && (
-              <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">
-                {organizationError}
-              </div>
-            )}
-
-            {organizationMessage && (
-              <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
-                {organizationMessage}
-              </div>
-            )}
-
-            <div className="md:col-span-2">
-              <Button disabled={organizationSaving} type="submit" variant="primary">
-                {organizationSaving ? "Firma Oluşturuluyor..." : "Firma Oluştur"}
-              </Button>
-            </div>
-          </form>
-
-          <div className="mt-6 space-y-3">
-            {organizations.map((organization) => (
-              <div key={organization.id} className="rounded-2xl border border-ink-200 bg-ink-50/80 px-4 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-ink-900">{organization.companyName}</p>
-                    <p className="mt-1 text-sm text-ink-600">
-                      Kullanıcı: {organization.userCount} • Admin: {organization.adminCount}
-                    </p>
-                    <p className="mt-1 text-xs text-ink-500">
-                      Oluşturulma: {formatDateTime(organization.createdAt)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
-
       <Card className="p-6 xl:col-span-2">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">
               Bakiye Talepleri
             </p>
-            <h2 className="mt-2 text-xl font-semibold text-ink-900">
-              Onay bekleyen yükleme istekleri
-            </h2>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">Onay bekleyen yükleme istekleri</h2>
             <p className="mt-2 text-sm text-ink-600">
-              Kullanıcılar havale yaptıktan sonra burada talep oluşturur. Kontrol edip
-              onayladığınızda bakiye kullanıcıya eklenir.
+              Kullanıcılar havale yaptıktan sonra burada talep oluşturur. Kontrol edip onayladığında
+              bakiye kullanıcıya eklenir.
             </p>
           </div>
           <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">
@@ -730,9 +571,7 @@ export function SettingsPage({
                   <div>
                     <p className="font-semibold text-ink-900">{notification.title}</p>
                     <p className="mt-2 text-sm text-ink-700">{notification.message}</p>
-                    <p className="mt-2 text-xs text-ink-500">
-                      {formatDateTime(notification.createdAt)}
-                    </p>
+                    <p className="mt-2 text-xs text-ink-500">{formatDateTime(notification.createdAt)}</p>
                   </div>
                   <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-200">
                     {notification.readAt ? "Okundu" : "Yeni"}
