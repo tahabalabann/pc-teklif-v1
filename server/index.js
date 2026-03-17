@@ -44,10 +44,12 @@ const apiBaseUrl = process.env.GELIVER_API_BASE_URL || "https://api.geliver.io/a
 const turkeyGeoApiBaseUrl = "https://beterali.com/api/v1";
 const minimumShippingBalance = 150;
 
+app.set("trust proxy", 1);
+
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 150,
+    max: 1000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: "Çok fazla istek gönderildi. Lütfen bir süre sonra tekrar deneyin." },
