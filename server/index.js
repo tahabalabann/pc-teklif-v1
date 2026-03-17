@@ -58,6 +58,7 @@ const port = Number(process.env.PORT || 8787);
 const apiBaseUrl = process.env.GELIVER_API_BASE_URL || "https://api.geliver.io/api/v1";
 const turkeyGeoApiBaseUrl = "https://beterali.com/api/v1";
 const minimumShippingBalance = 150;
+const nonPlatformShippingMarkupRate = 0.2;
 
 app.set("trust proxy", 1);
 
@@ -612,24 +613,28 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
 
     const selectedOffer = selectRequestedOffer(shipmentDraft, quote.geliverProviderServiceCode);
     const estimatedPrice = extractOfferAmount(selectedOffer);
+    const chargedEstimatedPrice = calculateChargedShippingAmount(estimatedPrice, req.user);
 
-    if (req.user.role !== "admin" && Number(req.user.balance || 0) < minimumShippingBalance) {
+    if (!req.user.isPlatformAdmin && Number(req.user.balance || 0) < minimumShippingBalance) {
       return res.status(400).json({
         error: `Kargo kodu oluşturmak için minimum bakiye ${minimumShippingBalance} TL olmalıdır.`,
       });
     }
 
-    if (req.user.role !== "admin" && estimatedPrice > Number(req.user.balance || 0)) {
+    if (!req.user.isPlatformAdmin && chargedEstimatedPrice > Number(req.user.balance || 0)) {
       return res.status(400).json({
-        error: `Bakiyeniz yetersiz. Gerekli yaklaşık tutar: ${estimatedPrice.toFixed(2)} TL`,
+        error: req.user.isPlatformAdmin
+          ? `Bakiyeniz yetersiz. Gerekli yaklaşık tutar: ${chargedEstimatedPrice.toFixed(2)} TL`
+          : "Bakiyeniz yetersiz.",
       });
     }
 
     const transactionResponse = await acceptOfferById(getOfferId(selectedOffer));
     const shipment = normalizeShipmentResponse(transactionResponse);
+    const chargedShipmentPrice = calculateChargedShippingAmount(shipment.shipmentPrice || estimatedPrice, req.user);
 
-    if (req.user.role !== "admin") {
-      await consumeUserBalance(req.user.id, shipment.shipmentPrice || estimatedPrice);
+    if (!req.user.isPlatformAdmin) {
+      await consumeUserBalance(req.user.id, chargedShipmentPrice);
     }
 
     await createShipmentAuditLogForUser(req.user, quote.quoteNo || quote.id || "", shipment);
@@ -688,6 +693,23 @@ function requirePlatformAdmin(req, res, next) {
   }
 
   next();
+}
+
+function calculateChargedShippingAmount(baseAmount, user) {
+  const numericBaseAmount = Number(baseAmount || 0);
+  if (!Number.isFinite(numericBaseAmount) || numericBaseAmount <= 0) {
+    return 0;
+  }
+
+  if (user?.isPlatformAdmin) {
+    return roundCurrency(numericBaseAmount);
+  }
+
+  return roundCurrency(numericBaseAmount * (1 + nonPlatformShippingMarkupRate));
+}
+
+function roundCurrency(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
 }
 
 async function createSenderAddress(address) {
