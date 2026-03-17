@@ -1,7 +1,14 @@
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+const ownerScopedTables = new Set([
+  "Quote",
+  "AddressBookEntry",
+  "SenderAddressBookEntry",
+  "CompanyDirectoryEntry",
+  "ShipmentRecord",
+]);
 
 async function ensureSchema() {
   await prisma.$executeRawUnsafe(`
@@ -429,9 +436,8 @@ export async function updateOrganizationForUser(currentUser, settings) {
 
 export async function createUser({ name, email, password, role, companyId, actorUser = null }) {
   const normalizedEmail = email.toLowerCase();
-  const existingRows = await prisma.$queryRawUnsafe(
-    `SELECT "id" FROM "User" WHERE "email" = ? LIMIT 1`,
-    normalizedEmail,
+  const existingRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "User" WHERE "email" = ${normalizedEmail} LIMIT 1`,
   );
 
   if (existingRows[0]) {
@@ -442,22 +448,23 @@ export async function createUser({ name, email, password, role, companyId, actor
   const passwordData = hashPassword(password);
   const id = randomUUID();
 
-  await prisma.$executeRawUnsafe(
-    `
+  await prisma.$executeRaw(
+    Prisma.sql`
       INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin", "isActive")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (
+        ${id},
+        ${name},
+        ${normalizedEmail},
+        ${["admin", "staff", "accounting", "operations", "shipping", "sales"].includes(role) ? role : "staff"},
+        ${now},
+        ${passwordData.hash},
+        ${passwordData.salt},
+        ${companyId},
+        ${0},
+        ${0},
+        ${1}
+      )
     `,
-    id,
-    name,
-    normalizedEmail,
-    ["admin", "staff", "accounting", "operations", "shipping", "sales"].includes(role) ? role : "staff",
-    now,
-    passwordData.hash,
-    passwordData.salt,
-    companyId,
-    0,
-    0,
-    1,
   );
 
   const userRows = await prisma.$queryRawUnsafe(
@@ -542,17 +549,15 @@ export async function createOrganizationWithAdmin({ companyName, adminName, admi
     throw new Error("Firma ve ilk admin bilgileri zorunludur.");
   }
 
-  const existingOrganizationRows = await prisma.$queryRawUnsafe(
-    `SELECT "id" FROM "Organization" WHERE LOWER("name") = LOWER(?) LIMIT 1`,
-    normalizedCompanyName,
+  const existingOrganizationRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "Organization" WHERE LOWER("name") = LOWER(${normalizedCompanyName}) LIMIT 1`,
   );
   if (existingOrganizationRows[0]) {
     throw new Error("Bu firma adıyla kayıtlı bir organizasyon zaten var.");
   }
 
-  const existingUserRows = await prisma.$queryRawUnsafe(
-    `SELECT "id" FROM "User" WHERE "email" = ? LIMIT 1`,
-    normalizedAdminEmail,
+  const existingUserRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "User" WHERE "email" = ${normalizedAdminEmail} LIMIT 1`,
   );
   if (existingUserRows[0]) {
     throw new Error("Bu e-posta ile kayıtlı bir kullanıcı zaten var.");
@@ -562,38 +567,29 @@ export async function createOrganizationWithAdmin({ companyName, adminName, admi
   const now = new Date().toISOString();
   const passwordData = hashPassword(normalizedAdminPassword);
 
-  await prisma.$executeRawUnsafe(
-    `
+  await prisma.$executeRaw(
+    Prisma.sql`
       INSERT INTO "Organization" ("id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "paymentAccountName", "paymentIban", "createdAt")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (${organizationId}, ${normalizedCompanyName}, ${""}, ${""}, ${""}, ${""}, ${""}, ${""}, ${""}, ${now})
     `,
-    organizationId,
-    normalizedCompanyName,
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    now,
   );
 
-  await prisma.$executeRawUnsafe(
-    `
+  await prisma.$executeRaw(
+    Prisma.sql`
       INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (
+        ${randomUUID()},
+        ${normalizedAdminName},
+        ${normalizedAdminEmail},
+        ${"admin"},
+        ${now},
+        ${passwordData.hash},
+        ${passwordData.salt},
+        ${organizationId},
+        ${0},
+        ${0}
+      )
     `,
-    randomUUID(),
-    normalizedAdminName,
-    normalizedAdminEmail,
-    "admin",
-    now,
-    passwordData.hash,
-    passwordData.salt,
-    organizationId,
-    0,
-    0,
   );
 
   await createAuditLog({
@@ -2131,6 +2127,10 @@ async function getDepositRequestByIdForCompany(companyId, requestId) {
 }
 
 async function getOwnerScopedRow(tableName, recordId) {
+  if (!ownerScopedTables.has(tableName)) {
+    throw new Error(`Unsupported owner-scoped table: ${tableName}`);
+  }
+
   const rows = await prisma.$queryRawUnsafe(
     `
       SELECT t."ownerUserId" AS "ownerUserId", u."companyId" AS "companyId"
