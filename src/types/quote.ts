@@ -133,6 +133,7 @@ export interface AppUser {
   createdAt: string;
   companyId: string;
   companyName: string;
+  balance: number;
 }
 
 export interface AuthSession {
@@ -148,7 +149,30 @@ export interface CompanySettings {
   email: string;
   address: string;
   sellerInfo: string;
+  paymentAccountName: string;
+  paymentIban: string;
   createdAt: string;
+}
+
+export type DepositRequestStatus = "pending" | "approved" | "rejected";
+
+export interface DepositRequest {
+  id: string;
+  requesterUserId: string;
+  requesterName: string;
+  requesterEmail: string;
+  amount: number;
+  note: string;
+  status: DepositRequestStatus;
+  approvedByUserId: string;
+  approvedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WalletSummary {
+  balance: number;
+  requests: DepositRequest[];
 }
 
 export interface CompanyRecord {

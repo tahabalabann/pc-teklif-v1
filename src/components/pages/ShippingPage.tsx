@@ -1,20 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Quote, ShipmentRecord } from "../../types/quote";
-import { shipmentRecordsApi } from "../../utils/api";
+import type { AppUser, CompanySettings, DepositRequest, Quote, ShipmentRecord, WalletSummary } from "../../types/quote";
+import { shipmentRecordsApi, walletApi } from "../../utils/api";
 import { formatDateTime, formatDisplayDate } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { calculateGrandTotal, createEmptyQuote, sanitizeQuote, touchQuote } from "../../utils/quote";
 import { GeliverShippingPanel } from "../shipping/GeliverShippingPanel";
 import { SavedQuotesPanel } from "../saved/SavedQuotesPanel";
+import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
 interface ShippingPageProps {
   activeQuote: Quote;
   savedQuotes: Quote[];
+  currentUser: AppUser;
+  companySettings: CompanySettings | null;
   onPatchQuote: (patch: Partial<Quote>) => void;
   onOpenQuote: (id: string) => void;
   onDuplicateQuote: (id: string) => void;
   onDeleteQuote: (id: string) => void;
+  onCurrentUserBalanceChange: (balance: number) => void;
 }
 
 type ShippingMode = "quote" | "standalone";
@@ -23,13 +27,21 @@ type ShippingHistoryItem =
   | { kind: "quote"; id: string; quote: Quote }
   | { kind: "standalone"; id: string; record: ShipmentRecord };
 
+const emptyWallet: WalletSummary = {
+  balance: 0,
+  requests: [],
+};
+
 export function ShippingPage({
   activeQuote,
   savedQuotes,
+  currentUser,
+  companySettings,
   onPatchQuote,
   onOpenQuote,
   onDuplicateQuote,
   onDeleteQuote,
+  onCurrentUserBalanceChange,
 }: ShippingPageProps) {
   const normalizedSavedQuotes = useMemo(() => savedQuotes.map(sanitizeQuote), [savedQuotes]);
   const [shipmentQuery, setShipmentQuery] = useState("");
@@ -37,21 +49,32 @@ export function ShippingPage({
   const [shippingMode, setShippingMode] = useState<ShippingMode>("quote");
   const [standaloneDraft, setStandaloneDraft] = useState<Quote>(() => createStandaloneDraft(activeQuote));
   const [standaloneShipments, setStandaloneShipments] = useState<ShipmentRecord[]>([]);
+  const [wallet, setWallet] = useState<WalletSummary>(emptyWallet);
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositNote, setDepositNote] = useState("");
+  const [depositLoading, setDepositLoading] = useState(false);
+  const [walletMessage, setWalletMessage] = useState("");
+  const [walletError, setWalletError] = useState("");
 
   useEffect(() => {
-    void shipmentRecordsApi
-      .list()
-      .then((records) => setStandaloneShipments(records))
-      .catch(() => setStandaloneShipments([]));
-  }, []);
+    void Promise.all([shipmentRecordsApi.list(), walletApi.getSummary()])
+      .then(([records, walletSummary]) => {
+        setStandaloneShipments(records);
+        setWallet(walletSummary);
+        onCurrentUserBalanceChange(walletSummary.balance);
+      })
+      .catch(() => {
+        setStandaloneShipments([]);
+      });
+  }, [onCurrentUserBalanceChange]);
 
   useEffect(() => {
     if (shippingMode !== "standalone") {
       return;
     }
 
-    setStandaloneDraft((prev) => preserveStandaloneRecipient(prev, activeQuote));
-  }, [activeQuote, shippingMode]);
+    setStandaloneDraft((prev) => preserveStandaloneRecipient(prev, activeQuote, companySettings));
+  }, [activeQuote, companySettings, shippingMode]);
 
   const shipmentHistory = useMemo<ShippingHistoryItem[]>(() => {
     const quoteItems: ShippingHistoryItem[] = normalizedSavedQuotes
@@ -92,10 +115,7 @@ export function ShippingPage({
 
         const matchesQuery =
           !shipmentQuery ||
-          haystack
-            .join(" ")
-            .toLocaleLowerCase("tr")
-            .includes(shipmentQuery.toLocaleLowerCase("tr"));
+          haystack.join(" ").toLocaleLowerCase("tr").includes(shipmentQuery.toLocaleLowerCase("tr"));
         const matchesProvider = providerFilter === "Tümü" || shipment.providerName === providerFilter;
         return matchesQuery && matchesProvider;
       })
@@ -119,9 +139,32 @@ export function ShippingPage({
   }, [normalizedSavedQuotes, standaloneShipments]);
 
   const standaloneSummary = useMemo(() => sanitizeQuote(standaloneDraft), [standaloneDraft]);
+  const pendingWalletRequests = wallet.requests.filter((request) => request.status === "pending");
 
   const patchStandaloneQuote = (patch: Partial<Quote>) => {
     setStandaloneDraft((prev) => touchQuote(sanitizeQuote({ ...prev, ...patch })));
+  };
+
+  const fillStandaloneFromActiveCustomer = () => {
+    const source = sanitizeQuote(activeQuote);
+    setStandaloneDraft((prev) =>
+      sanitizeQuote({
+        ...prev,
+        customerName: source.customerName,
+        companyName: source.companyName,
+        geliverRecipient: {
+          ...prev.geliverRecipient,
+          ...source.geliverRecipient,
+          fullName: source.geliverRecipient.fullName || source.customerName || prev.geliverRecipient.fullName,
+        },
+      }),
+    );
+  };
+
+  const refreshWalletSummary = async () => {
+    const walletSummary = await walletApi.getSummary();
+    setWallet(walletSummary);
+    onCurrentUserBalanceChange(walletSummary.balance);
   };
 
   const handleStandaloneShipmentCreated = async (shipment: ShipmentRecord["shipment"], quoteSnapshot: Quote) => {
@@ -130,10 +173,7 @@ export function ShippingPage({
       standalone: true,
       quoteId: "",
       quoteNo: quoteSnapshot.quoteNo || buildStandaloneShipmentNo(),
-      customerName:
-        quoteSnapshot.customerName ||
-        quoteSnapshot.geliverRecipient.fullName ||
-        "Bağımsız Kargo",
+      customerName: quoteSnapshot.customerName || quoteSnapshot.geliverRecipient.fullName || "Bağımsız Kargo",
       companyName: quoteSnapshot.companyName || activeQuote.companyName || "",
       recipientName: quoteSnapshot.geliverRecipient.fullName || quoteSnapshot.customerName || "",
       providerName: shipment.providerName || "",
@@ -145,9 +185,41 @@ export function ShippingPage({
     try {
       const saved = await shipmentRecordsApi.save(record);
       setStandaloneShipments((prev) => [saved, ...prev.filter((item) => item.id !== saved.id)]);
-      setStandaloneDraft(createStandaloneDraft(activeQuote));
+      setStandaloneDraft(createStandaloneDraft(activeQuote, companySettings));
+      await refreshWalletSummary();
     } catch {
       // The shipment itself already exists in Geliver; keep local UI state intact if history save fails.
+    }
+  };
+
+  const handleDeleteStandaloneShipment = async (shipmentId: string) => {
+    try {
+      await shipmentRecordsApi.delete(shipmentId);
+      setStandaloneShipments((prev) => prev.filter((item) => item.id !== shipmentId));
+    } catch {
+      // Best effort delete for history management.
+    }
+  };
+
+  const handleCreateDepositRequest = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setDepositLoading(true);
+    setWalletError("");
+    setWalletMessage("");
+
+    try {
+      const request = await walletApi.createRequest({
+        amount: Number(depositAmount || 0),
+        note: depositNote,
+      });
+      setWallet((prev) => ({ ...prev, requests: [request, ...prev.requests] }));
+      setDepositAmount("");
+      setDepositNote("");
+      setWalletMessage("Bakiye yükleme talebi oluşturuldu. Havalenizi kontrol ettikten sonra onaylayabilirsiniz.");
+    } catch (caughtError) {
+      setWalletError(caughtError instanceof Error ? caughtError.message : "Bakiye talebi oluşturulamadı.");
+    } finally {
+      setDepositLoading(false);
     }
   };
 
@@ -215,15 +287,111 @@ export function ShippingPage({
           )}
         </Card>
 
+        <Card className="p-5">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+            <div>
+              <p className="text-xs uppercase tracking-[0.16em] text-ink-500">Kargo Bakiyesi</p>
+              <h3 className="mt-2 text-2xl font-semibold text-ink-900">{formatCurrency(wallet.balance)}</h3>
+              <p className="mt-2 text-sm text-ink-600">
+                {currentUser.role === "admin"
+                  ? "Admin hesabı bakiyeyi referans amaçlı görür. Personel kullanıcılarında kargo tutarı otomatik düşer."
+                  : "Kargo oluşturulduğunda tutar bu bakiyeden düşer. Yetersiz bakiye varsa önce yükleme talebi oluşturun."}
+              </p>
+              <div className="mt-4 rounded-2xl border border-ink-200 bg-ink-50/80 p-4 text-sm text-ink-700">
+                <p className="font-semibold text-ink-900">Bakiye yükleme bilgisi</p>
+                <p className="mt-2">Alıcı: {companySettings?.paymentAccountName || "Henüz tanımlanmadı"}</p>
+                <p className="mt-1 break-all">IBAN: {companySettings?.paymentIban || "Henüz tanımlanmadı"}</p>
+                {pendingWalletRequests.length > 0 && (
+                  <p className="mt-3 text-xs font-semibold text-red-600">
+                    {pendingWalletRequests.length} adet onay bekleyen yükleme talebiniz var.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <form className="space-y-3" onSubmit={handleCreateDepositRequest}>
+              <div>
+                <p className="text-sm font-semibold text-ink-900">Bakiye yükleme talebi oluştur</p>
+                <p className="mt-1 text-sm text-ink-600">
+                  Havale yaptıktan sonra tutarı ve açıklamayı girin. Admin onaylayınca bakiye hesabınıza eklenir.
+                </p>
+              </div>
+
+              <input
+                className="field"
+                inputMode="decimal"
+                placeholder="Tutar (TL)"
+                value={depositAmount}
+                onChange={(event) => setDepositAmount(event.target.value)}
+              />
+              <textarea
+                className="field min-h-[110px]"
+                placeholder="Açıklama / havale notu"
+                value={depositNote}
+                onChange={(event) => setDepositNote(event.target.value)}
+              />
+
+              {walletError && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{walletError}</div>}
+              {walletMessage && (
+                <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{walletMessage}</div>
+              )}
+
+              <Button disabled={depositLoading} type="submit" variant="primary">
+                {depositLoading ? "Talep Gönderiliyor..." : "Yükleme Talebi Oluştur"}
+              </Button>
+            </form>
+          </div>
+
+          {wallet.requests.length > 0 && (
+            <div className="mt-5 space-y-3">
+              <p className="text-sm font-semibold text-ink-900">Son bakiye talepleriniz</p>
+              {wallet.requests.slice(0, 5).map((request: DepositRequest) => (
+                <div key={request.id} className="rounded-2xl border border-ink-200 bg-white/90 p-4 text-sm text-ink-700">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-ink-900">{formatCurrency(request.amount)}</p>
+                      <p className="mt-1 text-xs text-ink-500">Talep: {formatDateTime(request.createdAt)}</p>
+                      {request.note && <p className="mt-2 whitespace-pre-line">{request.note}</p>}
+                    </div>
+                    <span className="rounded-full bg-ink-100 px-3 py-1 text-xs font-semibold text-ink-700">
+                      {request.status === "pending" ? "Bekliyor" : request.status === "approved" ? "Onaylandı" : "Reddedildi"}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
         {shippingMode === "quote" ? (
-          <GeliverShippingPanel quote={activeQuote} onChange={onPatchQuote} mode="quote" />
+          <GeliverShippingPanel quote={activeQuote} onChange={onPatchQuote} mode="quote" onShipmentCreated={() => void refreshWalletSummary()} />
         ) : (
-          <GeliverShippingPanel
-            quote={standaloneSummary}
-            onChange={patchStandaloneQuote}
-            mode="standalone"
-            onShipmentCreated={handleStandaloneShipmentCreated}
-          />
+          <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink-900">Hızlı Doldur</p>
+                  <p className="mt-1 text-sm text-ink-600">
+                    Seçili tekliften müşteri adresini tek tuşla teklifsiz kargo formuna aktarın.
+                  </p>
+                </div>
+                <button
+                  className="rounded-xl bg-ink-900 px-4 py-2 text-sm font-semibold text-white"
+                  onClick={fillStandaloneFromActiveCustomer}
+                  type="button"
+                >
+                  Müşteri Adresinden Doldur
+                </button>
+              </div>
+            </Card>
+
+            <GeliverShippingPanel
+              quote={standaloneSummary}
+              onChange={patchStandaloneQuote}
+              mode="standalone"
+              onShipmentCreated={handleStandaloneShipmentCreated}
+            />
+          </div>
         )}
 
         <Card className="p-5">
@@ -270,9 +438,7 @@ export function ShippingPage({
                     : item.record.customerName || "Bağımsız Kargo";
                 const subtitle = item.kind === "quote" ? item.quote.quoteNo : item.record.quoteNo;
                 const total =
-                  item.kind === "quote"
-                    ? shipment.shipmentPrice ?? item.quote.shipping ?? 0
-                    : shipment.shipmentPrice ?? 0;
+                  item.kind === "quote" ? shipment.shipmentPrice ?? item.quote.shipping ?? 0 : shipment.shipmentPrice ?? 0;
 
                 return (
                   <div key={item.id} className="rounded-2xl border border-ink-200 bg-white/90 p-4">
@@ -338,6 +504,15 @@ export function ShippingPage({
                           Etiketi Aç
                         </a>
                       )}
+                      {item.kind === "standalone" && (
+                        <button
+                          className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-red-600 ring-1 ring-inset ring-red-200"
+                          onClick={() => void handleDeleteStandaloneShipment(item.record.id)}
+                          type="button"
+                        >
+                          Kaydı Sil
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -360,7 +535,7 @@ export function ShippingPage({
   );
 }
 
-function createStandaloneDraft(sourceQuote: Quote): Quote {
+function createStandaloneDraft(sourceQuote: Quote, companySettings?: CompanySettings | null): Quote {
   const source = sanitizeQuote(sourceQuote);
   const draft = createEmptyQuote();
 
@@ -368,9 +543,9 @@ function createStandaloneDraft(sourceQuote: Quote): Quote {
     ...draft,
     quoteNo: buildStandaloneShipmentNo(),
     customerName: "",
-    companyName: source.companyName || draft.companyName,
-    companyLogo: source.companyLogo || draft.companyLogo,
-    sellerInfo: source.sellerInfo || draft.sellerInfo,
+    companyName: companySettings?.companyName || source.companyName || draft.companyName,
+    companyLogo: companySettings?.logoUrl || source.companyLogo || draft.companyLogo,
+    sellerInfo: companySettings?.sellerInfo || source.sellerInfo || draft.sellerInfo,
     geliverSender: {
       ...draft.geliverSender,
       ...source.geliverSender,
@@ -378,28 +553,20 @@ function createStandaloneDraft(sourceQuote: Quote): Quote {
     geliverRecipient: {
       ...draft.geliverRecipient,
     },
-    rows: [],
-    labor: 0,
-    shipping: 0,
-    discount: 0,
-    cashPrice: 0,
-    tradePrice: 0,
-    salesPrice: 0,
-    costPrice: 0,
     notes: "",
     geliverShipment: null,
   });
 }
 
-function preserveStandaloneRecipient(currentDraft: Quote, sourceQuote: Quote): Quote {
+function preserveStandaloneRecipient(currentDraft: Quote, sourceQuote: Quote, companySettings?: CompanySettings | null): Quote {
   const source = sanitizeQuote(sourceQuote);
   const current = sanitizeQuote(currentDraft);
 
   return sanitizeQuote({
     ...current,
-    companyName: source.companyName || current.companyName,
-    companyLogo: source.companyLogo || current.companyLogo,
-    sellerInfo: source.sellerInfo || current.sellerInfo,
+    companyName: companySettings?.companyName || source.companyName || current.companyName,
+    companyLogo: companySettings?.logoUrl || source.companyLogo || current.companyLogo,
+    sellerInfo: companySettings?.sellerInfo || source.sellerInfo || current.sellerInfo,
     geliverSender: {
       ...current.geliverSender,
       fullName: current.geliverSender.fullName || source.geliverSender.fullName,

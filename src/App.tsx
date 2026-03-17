@@ -424,10 +424,15 @@ function App() {
           {route === "shipping" && (
             <ShippingPage
               activeQuote={activeQuote}
+              companySettings={companySettings}
+              currentUser={session.user}
               onDeleteQuote={(id) => void handleDeleteQuote(id)}
               onDuplicateQuote={handleDuplicateQuote}
               onOpenQuote={handleOpenQuote}
               onPatchQuote={patchQuote}
+              onCurrentUserBalanceChange={(balance) =>
+                setSession((prev) => (prev ? { ...prev, user: { ...prev.user, balance } } : prev))
+              }
               savedQuotes={normalizedSavedQuotes}
             />
           )}

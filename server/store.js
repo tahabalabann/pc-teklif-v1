@@ -17,6 +17,8 @@ async function ensureSchema() {
   await ensureColumn("Organization", "email", "TEXT");
   await ensureColumn("Organization", "address", "TEXT");
   await ensureColumn("Organization", "sellerInfo", "TEXT");
+  await ensureColumn("Organization", "paymentAccountName", "TEXT");
+  await ensureColumn("Organization", "paymentIban", "TEXT");
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "User" (
@@ -31,6 +33,7 @@ async function ensureSchema() {
   `);
 
   await ensureColumn("User", "companyId", "TEXT");
+  await ensureColumn("User", "balance", "REAL NOT NULL DEFAULT 0");
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Quote" (
@@ -101,6 +104,21 @@ async function ensureSchema() {
   `);
 
   await ensureColumn("Session", "expiresAt", "TEXT");
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "DepositRequest" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "requesterUserId" TEXT NOT NULL,
+      "amount" REAL NOT NULL,
+      "note" TEXT NOT NULL,
+      "status" TEXT NOT NULL,
+      "approvedByUserId" TEXT,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL,
+      CONSTRAINT "DepositRequest_requesterUserId_fkey" FOREIGN KEY ("requesterUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "DepositRequest_approvedByUserId_fkey" FOREIGN KEY ("approvedByUserId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+    );
+  `);
 }
 
 async function ensureColumn(tableName, columnName, columnType) {
@@ -131,6 +149,7 @@ function publicUser(row) {
     createdAt: row.createdAt,
     companyId: row.companyId,
     companyName: row.companyName || "",
+    balance: Number(row.balance || 0),
   };
 }
 
@@ -143,6 +162,8 @@ function publicOrganization(row) {
     email: row.email || "",
     address: row.address || "",
     sellerInfo: row.sellerInfo || "",
+    paymentAccountName: row.paymentAccountName || "",
+    paymentIban: row.paymentIban || "",
     createdAt: row.createdAt,
   };
 }
@@ -165,13 +186,15 @@ async function getOrCreateDefaultOrganization() {
     email: "",
     address: "",
     sellerInfo: "",
+    paymentAccountName: "",
+    paymentIban: "",
     createdAt: new Date().toISOString(),
   };
 
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO "Organization" ("id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "createdAt")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO "Organization" ("id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "paymentAccountName", "paymentIban", "createdAt")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     organization.id,
     organization.name,
@@ -180,6 +203,8 @@ async function getOrCreateDefaultOrganization() {
     organization.email,
     organization.address,
     organization.sellerInfo,
+    organization.paymentAccountName,
+    organization.paymentIban,
     organization.createdAt,
   );
 
@@ -213,8 +238,8 @@ export async function ensureSeedAdmin() {
 
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     randomUUID(),
     name,
@@ -224,6 +249,7 @@ export async function ensureSeedAdmin() {
     passwordData.hash,
     passwordData.salt,
     organization.id,
+    0,
   );
 }
 
@@ -236,6 +262,7 @@ export async function authenticateUser(email, password) {
         u."email" AS "email",
         u."role" AS "role",
         u."createdAt" AS "createdAt",
+        u."balance" AS "balance",
         u."passwordHash" AS "passwordHash",
         u."passwordSalt" AS "passwordSalt",
         u."companyId" AS "companyId",
@@ -265,6 +292,7 @@ export async function listUsers(currentUser) {
         u."email" AS "email",
         u."role" AS "role",
         u."createdAt" AS "createdAt",
+        u."balance" AS "balance",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "User" u
@@ -281,7 +309,7 @@ export async function listUsers(currentUser) {
 export async function getOrganizationForUser(currentUser) {
   const rows = await prisma.$queryRawUnsafe(
     `
-      SELECT "id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "createdAt"
+      SELECT "id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "paymentAccountName", "paymentIban", "createdAt"
       FROM "Organization"
       WHERE "id" = ?
       LIMIT 1
@@ -305,6 +333,8 @@ export async function updateOrganizationForUser(currentUser, settings) {
     email: String(settings.email || "").trim(),
     address: String(settings.address || "").trim(),
     sellerInfo: String(settings.sellerInfo || "").trim(),
+    paymentAccountName: String(settings.paymentAccountName || "").trim(),
+    paymentIban: String(settings.paymentIban || "").trim(),
   };
 
   if (!nextSettings.companyName) {
@@ -314,7 +344,7 @@ export async function updateOrganizationForUser(currentUser, settings) {
   await prisma.$executeRawUnsafe(
     `
       UPDATE "Organization"
-      SET "name" = ?, "logoUrl" = ?, "phone" = ?, "email" = ?, "address" = ?, "sellerInfo" = ?
+      SET "name" = ?, "logoUrl" = ?, "phone" = ?, "email" = ?, "address" = ?, "sellerInfo" = ?, "paymentAccountName" = ?, "paymentIban" = ?
       WHERE "id" = ?
     `,
     nextSettings.companyName,
@@ -323,6 +353,8 @@ export async function updateOrganizationForUser(currentUser, settings) {
     nextSettings.email,
     nextSettings.address,
     nextSettings.sellerInfo,
+    nextSettings.paymentAccountName,
+    nextSettings.paymentIban,
     currentUser.companyId,
   );
 
@@ -346,8 +378,8 @@ export async function createUser({ name, email, password, role, companyId }) {
 
   await prisma.$executeRawUnsafe(
     `
-      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     id,
     name,
@@ -357,6 +389,7 @@ export async function createUser({ name, email, password, role, companyId }) {
     passwordData.hash,
     passwordData.salt,
     companyId,
+    0,
   );
 
   const userRows = await prisma.$queryRawUnsafe(
@@ -367,6 +400,7 @@ export async function createUser({ name, email, password, role, companyId }) {
         u."email" AS "email",
         u."role" AS "role",
         u."createdAt" AS "createdAt",
+        u."balance" AS "balance",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "User" u
@@ -411,6 +445,7 @@ export async function getSessionUser(token) {
         u."email" AS "email",
         u."role" AS "role",
         u."createdAt" AS "createdAt",
+        u."balance" AS "balance",
         u."companyId" AS "companyId",
         o."name" AS "companyName"
       FROM "Session" s
@@ -450,6 +485,199 @@ export async function getSessionUser(token) {
 
 export async function deleteSession(token) {
   await prisma.$executeRawUnsafe(`DELETE FROM "Session" WHERE "token" = ?`, token);
+}
+
+export async function getWalletSummaryForUser(user) {
+  const balanceRows = await prisma.$queryRawUnsafe(
+    `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
+    user.id,
+  );
+
+  return {
+    balance: Number(balanceRows[0]?.balance || 0),
+    requests: await listDepositRequestsForUser(user),
+  };
+}
+
+export async function listDepositRequestsForUser(user) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        d."id" AS "id",
+        d."requesterUserId" AS "requesterUserId",
+        requester."name" AS "requesterName",
+        requester."email" AS "requesterEmail",
+        d."amount" AS "amount",
+        d."note" AS "note",
+        d."status" AS "status",
+        d."approvedByUserId" AS "approvedByUserId",
+        approver."name" AS "approvedByName",
+        d."createdAt" AS "createdAt",
+        d."updatedAt" AS "updatedAt"
+      FROM "DepositRequest" d
+      JOIN "User" requester ON requester."id" = d."requesterUserId"
+      LEFT JOIN "User" approver ON approver."id" = d."approvedByUserId"
+      WHERE requester."companyId" = ?
+      ORDER BY d."createdAt" DESC
+    `,
+    user.companyId,
+  );
+
+  return rows
+    .filter((row) => user.role === "admin" || row.requesterUserId === user.id)
+    .map((row) => ({
+      id: row.id,
+      requesterUserId: row.requesterUserId,
+      requesterName: row.requesterName || "",
+      requesterEmail: row.requesterEmail || "",
+      amount: Number(row.amount || 0),
+      note: row.note || "",
+      status: row.status || "pending",
+      approvedByUserId: row.approvedByUserId || "",
+      approvedByName: row.approvedByName || "",
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }));
+}
+
+export async function createDepositRequestForUser(user, { amount, note }) {
+  const numericAmount = Number(amount || 0);
+  if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+    throw new Error("Yükleme tutarı sıfırdan büyük olmalıdır.");
+  }
+
+  const now = new Date().toISOString();
+  const payload = {
+    id: randomUUID(),
+    requesterUserId: user.id,
+    requesterName: user.name,
+    requesterEmail: user.email,
+    amount: numericAmount,
+    note: String(note || "").trim(),
+    status: "pending",
+    approvedByUserId: "",
+    approvedByName: "",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await prisma.$executeRawUnsafe(
+    `
+      INSERT INTO "DepositRequest" ("id", "requesterUserId", "amount", "note", "status", "approvedByUserId", "createdAt", "updatedAt")
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    payload.id,
+    payload.requesterUserId,
+    payload.amount,
+    payload.note,
+    payload.status,
+    null,
+    payload.createdAt,
+    payload.updatedAt,
+  );
+
+  return payload;
+}
+
+export async function approveDepositRequestForUser(user, requestId) {
+  const request = await getDepositRequestRowForCompany(user.companyId, requestId);
+  if (!request) {
+    throw new Error("Bakiye talebi bulunamadı.");
+  }
+  if (request.status !== "pending") {
+    throw new Error("Bu talep zaten işlenmiş.");
+  }
+
+  const now = new Date().toISOString();
+
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE "User"
+      SET "balance" = COALESCE("balance", 0) + ?
+      WHERE "id" = ?
+    `,
+    Number(request.amount || 0),
+    request.requesterUserId,
+  );
+
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE "DepositRequest"
+      SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
+      WHERE "id" = ?
+    `,
+    "approved",
+    user.id,
+    now,
+    requestId,
+  );
+
+  const balanceRows = await prisma.$queryRawUnsafe(
+    `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
+    request.requesterUserId,
+  );
+
+  return {
+    request: await getDepositRequestByIdForCompany(user.companyId, requestId),
+    balance: Number(balanceRows[0]?.balance || 0),
+  };
+}
+
+export async function rejectDepositRequestForUser(user, requestId) {
+  const request = await getDepositRequestRowForCompany(user.companyId, requestId);
+  if (!request) {
+    throw new Error("Bakiye talebi bulunamadı.");
+  }
+  if (request.status !== "pending") {
+    throw new Error("Bu talep zaten işlenmiş.");
+  }
+
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE "DepositRequest"
+      SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
+      WHERE "id" = ?
+    `,
+    "rejected",
+    user.id,
+    new Date().toISOString(),
+    requestId,
+  );
+
+  return getDepositRequestByIdForCompany(user.companyId, requestId);
+}
+
+export async function getUserBalance(userId) {
+  const rows = await prisma.$queryRawUnsafe(
+    `SELECT "balance" FROM "User" WHERE "id" = ? LIMIT 1`,
+    userId,
+  );
+
+  return Number(rows[0]?.balance || 0);
+}
+
+export async function consumeUserBalance(userId, amount) {
+  const numericAmount = Number(amount || 0);
+  if (numericAmount <= 0) {
+    return await getUserBalance(userId);
+  }
+
+  const currentBalance = await getUserBalance(userId);
+  if (currentBalance < numericAmount) {
+    throw new Error("Bakiyeniz yetersiz. Önce bakiye yükleme talebi oluşturun.");
+  }
+
+  await prisma.$executeRawUnsafe(
+    `
+      UPDATE "User"
+      SET "balance" = COALESCE("balance", 0) - ?
+      WHERE "id" = ?
+    `,
+    numericAmount,
+    userId,
+  );
+
+  return await getUserBalance(userId);
 }
 
 export async function listQuotesForUser(user) {
@@ -793,6 +1021,15 @@ export async function saveCompanyForUser(user, company) {
   return payload;
 }
 
+export async function deleteShipmentRecordForUser(user, shipmentId) {
+  const row = await getOwnerScopedRow("ShipmentRecord", shipmentId);
+  if (!row || row.companyId !== user.companyId) {
+    return;
+  }
+
+  await prisma.$executeRawUnsafe(`DELETE FROM "ShipmentRecord" WHERE "id" = ?`, shipmentId);
+}
+
 export async function deleteCompanyForUser(user, companyId) {
   const row = await getOwnerScopedRow("CompanyDirectoryEntry", companyId);
   if (!row || row.companyId !== user.companyId) {
@@ -804,6 +1041,76 @@ export async function deleteCompanyForUser(user, companyId) {
 
 export async function disconnectStore() {
   await prisma.$disconnect();
+}
+
+async function getDepositRequestRowForCompany(companyId, requestId) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        d."id" AS "id",
+        d."requesterUserId" AS "requesterUserId",
+        requester."companyId" AS "companyId",
+        d."amount" AS "amount",
+        d."status" AS "status"
+      FROM "DepositRequest" d
+      JOIN "User" requester ON requester."id" = d."requesterUserId"
+      WHERE d."id" = ?
+      LIMIT 1
+    `,
+    requestId,
+  );
+
+  const row = rows[0] || null;
+  if (!row || row.companyId !== companyId) {
+    return null;
+  }
+
+  return row;
+}
+
+async function getDepositRequestByIdForCompany(companyId, requestId) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT
+        d."id" AS "id",
+        d."requesterUserId" AS "requesterUserId",
+        requester."name" AS "requesterName",
+        requester."email" AS "requesterEmail",
+        requester."companyId" AS "companyId",
+        d."amount" AS "amount",
+        d."note" AS "note",
+        d."status" AS "status",
+        d."approvedByUserId" AS "approvedByUserId",
+        approver."name" AS "approvedByName",
+        d."createdAt" AS "createdAt",
+        d."updatedAt" AS "updatedAt"
+      FROM "DepositRequest" d
+      JOIN "User" requester ON requester."id" = d."requesterUserId"
+      LEFT JOIN "User" approver ON approver."id" = d."approvedByUserId"
+      WHERE d."id" = ?
+      LIMIT 1
+    `,
+    requestId,
+  );
+
+  const row = rows[0] || null;
+  if (!row || row.companyId !== companyId) {
+    return null;
+  }
+
+  return {
+    id: row.id,
+    requesterUserId: row.requesterUserId,
+    requesterName: row.requesterName || "",
+    requesterEmail: row.requesterEmail || "",
+    amount: Number(row.amount || 0),
+    note: row.note || "",
+    status: row.status || "pending",
+    approvedByUserId: row.approvedByUserId || "",
+    approvedByName: row.approvedByName || "",
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 async function getOwnerScopedRow(tableName, recordId) {

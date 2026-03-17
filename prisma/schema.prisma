@@ -15,6 +15,8 @@ model Organization {
   email     String?
   address   String?
   sellerInfo String?
+  paymentAccountName String?
+  paymentIban String?
   createdAt String
   users     User[]
 }
@@ -27,6 +29,7 @@ model User {
   createdAt         String
   passwordHash      String
   passwordSalt      String
+  balance           Float?
   companyId         String?
   company           Organization?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
   quotes            Quote[]
@@ -34,6 +37,8 @@ model User {
   senderAddressBook SenderAddressBookEntry[]
   companies         CompanyDirectoryEntry[]
   shipmentRecords   ShipmentRecord[]
+  depositRequests   DepositRequest[]     @relation("DepositRequester")
+  approvedRequests  DepositRequest[]     @relation("DepositApprover")
   sessions          Session[]
 }
 
@@ -82,6 +87,19 @@ model ShipmentRecord {
   createdAt   String
   updatedAt   String
   user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+}
+
+model DepositRequest {
+  id               String @id
+  requesterUserId  String
+  amount           Float
+  note             String
+  status           String
+  approvedByUserId String?
+  createdAt        String
+  updatedAt        String
+  requester        User   @relation("DepositRequester", fields: [requesterUserId], references: [id], onDelete: Cascade)
+  approver         User?  @relation("DepositApprover", fields: [approvedByUserId], references: [id], onDelete: SetNull)
 }
 
 model Session {

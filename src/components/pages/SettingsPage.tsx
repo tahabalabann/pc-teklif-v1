@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import type { AppUser, CompanySettings } from "../../types/quote";
-import { settingsApi, usersApi } from "../../utils/api";
+import type { AppUser, CompanySettings, DepositRequest } from "../../types/quote";
+import { settingsApi, usersApi, walletApi } from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
+import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
@@ -18,6 +19,8 @@ const emptyCompanySettings: CompanySettings = {
   email: "",
   address: "",
   sellerInfo: "",
+  paymentAccountName: "",
+  paymentIban: "",
   createdAt: "",
 };
 
@@ -31,6 +34,7 @@ const emptyUserForm = {
 export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps) {
   const [company, setCompany] = useState<CompanySettings>(emptyCompanySettings);
   const [users, setUsers] = useState<AppUser[]>([]);
+  const [depositRequests, setDepositRequests] = useState<DepositRequest[]>([]);
   const [userForm, setUserForm] = useState(emptyUserForm);
   const [loading, setLoading] = useState(true);
   const [companySaving, setCompanySaving] = useState(false);
@@ -47,13 +51,18 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
       setError("");
 
       try {
-        const [companySettings, companyUsers] = await Promise.all([settingsApi.getCompany(), usersApi.list()]);
+        const [companySettings, companyUsers, requests] = await Promise.all([
+          settingsApi.getCompany(),
+          usersApi.list(),
+          walletApi.listRequests(),
+        ]);
         if (!mounted) {
           return;
         }
 
         setCompany(companySettings);
         setUsers(companyUsers);
+        setDepositRequests(requests);
       } catch (caughtError) {
         if (!mounted) {
           return;
@@ -109,6 +118,19 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
     }
   };
 
+  const handleApproveRequest = async (requestId: string) => {
+    const result = await walletApi.approveRequest(requestId);
+    setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? result.request : item)));
+    setUsers((prev) =>
+      prev.map((user) => (user.id === result.request.requesterUserId ? { ...user, balance: result.balance } : user)),
+    );
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    const request = await walletApi.rejectRequest(requestId);
+    setDepositRequests((prev) => prev.map((item) => (item.id === requestId ? request : item)));
+  };
+
   if (loading) {
     return (
       <Card className="p-6">
@@ -125,7 +147,7 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Firma Ayarları</p>
             <h2 className="mt-2 text-2xl font-semibold text-ink-900">{company.companyName || currentUser.companyName}</h2>
             <p className="mt-2 max-w-2xl text-sm text-ink-600">
-              Firma kimliğini, tekliflerde kullanılacak temel iletişim bilgisini ve varsayılan satıcı notunu tek yerden yönetin.
+              Firma kimliğini, tekliflerde kullanılacak temel iletişim bilgisini ve bakiye yükleme hesap bilgilerini tek yerden yönetin.
             </p>
           </div>
 
@@ -192,6 +214,26 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
             />
           </label>
 
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">Bakiye yükleme alıcı adı</span>
+            <input
+              className="field"
+              placeholder="Ad Soyad"
+              value={company.paymentAccountName}
+              onChange={(event) => setCompany((prev) => ({ ...prev, paymentAccountName: event.target.value }))}
+            />
+          </label>
+
+          <label className="space-y-2">
+            <span className="text-sm font-medium text-ink-700">IBAN</span>
+            <input
+              className="field"
+              placeholder="TR00 0000 0000 0000 0000 0000 00"
+              value={company.paymentIban}
+              onChange={(event) => setCompany((prev) => ({ ...prev, paymentIban: event.target.value }))}
+            />
+          </label>
+
           {error && <div className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700 md:col-span-2">{error}</div>}
           {companyMessage && (
             <div className="rounded-2xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700 md:col-span-2">
@@ -203,7 +245,7 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
             <Button disabled={companySaving} type="submit" variant="primary">
               {companySaving ? "Kaydediliyor..." : "Firma Ayarlarını Kaydet"}
             </Button>
-            <span className="text-xs text-ink-500">Bu bilgiler yeni tekliflerde varsayılan olarak kullanılabilir.</span>
+            <span className="text-xs text-ink-500">IBAN ve alıcı adı kullanıcıların bakiye yükleme panelinde gösterilir.</span>
           </div>
         </form>
       </Card>
@@ -266,6 +308,7 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
                 <div>
                   <p className="font-semibold text-ink-900">{user.name}</p>
                   <p className="mt-1 text-sm text-ink-600">{user.email}</p>
+                  <p className="mt-1 text-sm font-medium text-red-600">Bakiye: {formatCurrency(user.balance || 0)}</p>
                   <p className="mt-1 text-xs text-ink-500">Eklenme: {formatDateTime(user.createdAt)}</p>
                 </div>
                 <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-ink-600 ring-1 ring-ink-200">
@@ -274,6 +317,67 @@ export function SettingsPage({ currentUser, onCompanySaved }: SettingsPageProps)
               </div>
             </div>
           ))}
+        </div>
+      </Card>
+
+      <Card className="p-6 xl:col-span-2">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Bakiye Talepleri</p>
+            <h2 className="mt-2 text-xl font-semibold text-ink-900">Onay bekleyen yükleme istekleri</h2>
+            <p className="mt-2 text-sm text-ink-600">
+              Kullanıcılar havale yaptıktan sonra burada talep oluşturur. Kontrol edip onayladığınızda bakiye kullanıcıya eklenir.
+            </p>
+          </div>
+          <div className="rounded-xl bg-ink-100 px-3 py-2 text-xs font-medium text-ink-700">
+            {depositRequests.filter((request) => request.status === "pending").length} bekleyen talep
+          </div>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {depositRequests.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-ink-300 px-4 py-6 text-sm text-ink-500">
+              Henüz bakiye yükleme talebi yok.
+            </div>
+          ) : (
+            depositRequests.map((request) => (
+              <div key={request.id} className="rounded-2xl border border-ink-200 bg-ink-50/80 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-ink-900">{request.requesterName}</p>
+                    <p className="mt-1 text-sm text-ink-600">
+                      {request.requesterEmail} • {formatCurrency(request.amount)}
+                    </p>
+                    <p className="mt-1 text-xs text-ink-500">Talep: {formatDateTime(request.createdAt)}</p>
+                    {request.note && <p className="mt-2 whitespace-pre-line text-sm text-ink-700">{request.note}</p>}
+                    {request.status !== "pending" && (
+                      <p className="mt-2 text-xs text-ink-500">
+                        İşlem: {request.status === "approved" ? "Onaylandı" : "Reddedildi"}
+                        {request.approvedByName ? ` • ${request.approvedByName}` : ""} • {formatDateTime(request.updatedAt)}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {request.status === "pending" ? (
+                      <>
+                        <Button type="button" variant="primary" onClick={() => void handleApproveRequest(request.id)}>
+                          Onayla
+                        </Button>
+                        <Button type="button" onClick={() => void handleRejectRequest(request.id)}>
+                          Reddet
+                        </Button>
+                      </>
+                    ) : (
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink-600 ring-1 ring-ink-200">
+                        {request.status === "approved" ? "Onaylandı" : "Reddedildi"}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Card>
     </div>

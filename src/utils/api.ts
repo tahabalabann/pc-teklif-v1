@@ -8,6 +8,8 @@ import type {
   Quote,
   SavedRecipientAddress,
   ShipmentRecord,
+  WalletSummary,
+  DepositRequest,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -174,4 +176,31 @@ export const shipmentRecordsApi = {
         body: JSON.stringify({ shipment }),
       })
     ).shipment,
+  delete: async (shipmentId: string) => {
+    await apiRequest<{ ok: true }>(`/api/shipment-records/${shipmentId}`, { method: "DELETE" });
+  },
+};
+
+export const walletApi = {
+  getSummary: async () => (await apiRequest<{ wallet: WalletSummary }>("/api/wallet/summary")).wallet,
+  createRequest: async (payload: { amount: number; note: string }) =>
+    (
+      await apiRequest<{ request: DepositRequest }>("/api/wallet/deposit-requests", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+    ).request,
+  listRequests: async () => (await apiRequest<{ requests: DepositRequest[] }>("/api/wallet/deposit-requests")).requests,
+  approveRequest: async (requestId: string) =>
+    (
+      await apiRequest<{ request: DepositRequest; balance: number }>(`/api/wallet/deposit-requests/${requestId}/approve`, {
+        method: "POST",
+      })
+    ),
+  rejectRequest: async (requestId: string) =>
+    (
+      await apiRequest<{ request: DepositRequest }>(`/api/wallet/deposit-requests/${requestId}/reject`, {
+        method: "POST",
+      })
+    ).request,
 };

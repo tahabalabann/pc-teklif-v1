@@ -6,21 +6,28 @@ import {
   authenticateUser,
   createSessionForUser,
   createUser,
+  createDepositRequestForUser,
+  consumeUserBalance,
   deleteAddressBookEntryForUser,
   deleteCompanyForUser,
   deleteQuoteForUser,
+  deleteShipmentRecordForUser,
   deleteSenderAddressBookEntryForUser,
   deleteSession,
   disconnectStore,
   ensureSeedAdmin,
+  getWalletSummaryForUser,
   getOrganizationForUser,
   getSessionUser,
+  approveDepositRequestForUser,
   listAddressBookForUser,
   listCompaniesForUser,
+  listDepositRequestsForUser,
   listQuotesForUser,
   listShipmentRecordsForUser,
   listSenderAddressBookForUser,
   listUsers,
+  rejectDepositRequestForUser,
   saveAddressBookEntryForUser,
   saveCompanyForUser,
   saveQuoteForUser,
@@ -137,6 +144,64 @@ app.put("/api/settings/company", requireAuth, requireAdmin, async (req, res) => 
   }
 });
 
+app.get("/api/wallet/summary", requireAuth, async (req, res) => {
+  try {
+    const wallet = await getWalletSummaryForUser(req.user);
+    return res.json({ wallet });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye özeti alınamadı.",
+    });
+  }
+});
+
+app.get("/api/wallet/deposit-requests", requireAuth, async (req, res) => {
+  try {
+    const requests = await listDepositRequestsForUser(req.user);
+    return res.json({ requests });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye talepleri alınamadı.",
+    });
+  }
+});
+
+app.post("/api/wallet/deposit-requests", requireAuth, async (req, res) => {
+  try {
+    const request = await createDepositRequestForUser(req.user, {
+      amount: req.body?.amount,
+      note: req.body?.note,
+    });
+    return res.status(201).json({ request });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye talebi oluşturulamadı.",
+    });
+  }
+});
+
+app.post("/api/wallet/deposit-requests/:id/approve", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await approveDepositRequestForUser(req.user, req.params.id);
+    return res.json(result);
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye talebi onaylanamadı.",
+    });
+  }
+});
+
+app.post("/api/wallet/deposit-requests/:id/reject", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const request = await rejectDepositRequestForUser(req.user, req.params.id);
+    return res.json({ request });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Bakiye talebi reddedilemedi.",
+    });
+  }
+});
+
 app.get("/api/quotes", requireAuth, async (req, res) => {
   res.json({ quotes: await listQuotesForUser(req.user) });
 });
@@ -240,6 +305,11 @@ app.post("/api/shipment-records", requireAuth, async (req, res) => {
   }
 });
 
+app.delete("/api/shipment-records/:id", requireAuth, async (req, res) => {
+  await deleteShipmentRecordForUser(req.user, req.params.id);
+  return res.json({ ok: true });
+});
+
 app.post("/api/companies", requireAuth, async (req, res) => {
   const company = req.body?.company;
   if (!company?.companyName) {
@@ -332,8 +402,23 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
       body: JSON.stringify(buildShipmentPayload(quote, sender.id || sender.addressID || sender.senderAddressID)),
     });
 
-    const transactionResponse = await acceptBestOffer(shipmentDraft, quote.geliverProviderServiceCode);
-    return res.json({ shipment: normalizeShipmentResponse(transactionResponse) });
+    const selectedOffer = selectRequestedOffer(shipmentDraft, quote.geliverProviderServiceCode);
+    const estimatedPrice = extractOfferAmount(selectedOffer);
+
+    if (req.user.role !== "admin" && estimatedPrice > Number(req.user.balance || 0)) {
+      return res.status(400).json({
+        error: `Bakiyeniz yetersiz. Gerekli yaklaşık tutar: ${estimatedPrice.toFixed(2)} TL`,
+      });
+    }
+
+    const transactionResponse = await acceptOfferById(getOfferId(selectedOffer));
+    const shipment = normalizeShipmentResponse(transactionResponse);
+
+    if (req.user.role !== "admin") {
+      await consumeUserBalance(req.user.id, shipment.shipmentPrice || estimatedPrice);
+    }
+
+    return res.json({ shipment });
   } catch (error) {
     return res.status(500).json({
       error: error instanceof Error ? error.message : "Geliver işlemi sırasında hata oluştu.",
@@ -566,10 +651,10 @@ async function geliverRequest(path, init) {
   return unwrapPayload(payload);
 }
 
-async function acceptBestOffer(transactionDraft, requestedProviderServiceCode) {
+function selectRequestedOffer(transactionDraft, requestedProviderServiceCode) {
   const shipment = transactionDraft?.shipment || transactionDraft?.data || transactionDraft;
   if (shipment?.acceptedOffer || shipment?.acceptedOfferID || shipment?.trackingNumber) {
-    return transactionDraft;
+    return shipment.acceptedOffer || shipment.offer;
   }
 
   const offers = extractOffers(transactionDraft);
@@ -585,6 +670,10 @@ async function acceptBestOffer(transactionDraft, requestedProviderServiceCode) {
     throw new Error("Offer ID (Teklif ID'si) bulunamadı");
   }
 
+  return selectedOffer;
+}
+
+async function acceptOfferById(offerId) {
   const candidateRequests = [
     { path: "/transactions", body: { offerID: offerId } },
     { path: "/transactions", body: { offerId } },
@@ -618,6 +707,29 @@ function getOfferId(offer) {
 
 function getOfferServiceCode(offer) {
   return offer?.providerServiceCode || offer?.serviceCode || offer?.code || "";
+}
+
+function extractOfferAmount(offer) {
+  const candidates = [
+    offer?.totalAmount,
+    offer?.amount,
+    offer?.price,
+    offer?.price?.amount,
+    offer?.price?.value,
+    offer?.totalPrice,
+    offer?.totalPrice?.amount,
+    offer?.pricing?.totalAmount,
+    offer?.pricing?.amount,
+  ];
+
+  for (const candidate of candidates) {
+    const parsed = toNumber(candidate);
+    if (parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return 0;
 }
 
 function unwrapPayload(payload) {
