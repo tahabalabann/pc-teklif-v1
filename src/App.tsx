@@ -36,6 +36,7 @@ function App() {
   const [autoSaveError, setAutoSaveError] = useState("");
   const lastSavedSnapshotRef = useRef("");
   const skipAutoSaveRef = useRef(true);
+  const hasHydratedQuoteRef = useRef(false);
 
   const activeQuote = useMemo(() => sanitizeQuote(currentQuote), [currentQuote]);
   const normalizedSavedQuotes = useMemo(() => savedQuotes.map(sanitizeQuote), [savedQuotes]);
@@ -59,11 +60,12 @@ function App() {
       return;
     }
 
+    hasHydratedQuoteRef.current = false;
     void loadQuotes(session.user);
   }, [session]);
 
   useEffect(() => {
-    if (!session) {
+    if (!session || !hasHydratedQuoteRef.current) {
       return;
     }
 
@@ -135,6 +137,7 @@ function App() {
         setCurrentQuote(emptyQuote);
         lastSavedSnapshotRef.current = JSON.stringify(emptyQuote);
       }
+      hasHydratedQuoteRef.current = true;
     } finally {
       setLoadingQuotes(false);
     }
@@ -325,6 +328,7 @@ function App() {
       setCompanySettings(null);
       setCurrentQuote(createEmptyQuote());
       skipAutoSaveRef.current = true;
+      hasHydratedQuoteRef.current = false;
       lastSavedSnapshotRef.current = "";
       resetSaveIndicators();
       setRoute("quote-detail");
