@@ -32,6 +32,8 @@ const emptyWallet: WalletSummary = {
   requests: [],
 };
 
+const MINIMUM_SHIPPING_BALANCE = 150;
+
 export function ShippingPage({
   activeQuote,
   savedQuotes,
@@ -140,6 +142,11 @@ export function ShippingPage({
 
   const standaloneSummary = useMemo(() => sanitizeQuote(standaloneDraft), [standaloneDraft]);
   const pendingWalletRequests = wallet.requests.filter((request) => request.status === "pending");
+  const shippingBlockedForLowBalance = currentUser.role !== "admin" && wallet.balance < MINIMUM_SHIPPING_BALANCE;
+  const lowBalanceMessage =
+    currentUser.role !== "admin"
+      ? `Kargo kodu oluşturmak için minimum bakiye ${formatCurrency(MINIMUM_SHIPPING_BALANCE)} olmalıdır. Mevcut bakiyeniz: ${formatCurrency(wallet.balance)}`
+      : "";
 
   const patchStandaloneQuote = (patch: Partial<Quote>) => {
     setStandaloneDraft((prev) => touchQuote(sanitizeQuote({ ...prev, ...patch })));
@@ -297,6 +304,9 @@ export function ShippingPage({
                   ? "Admin hesabı bakiyeyi referans amaçlı görür. Personel kullanıcılarında kargo tutarı otomatik düşer."
                   : "Kargo oluşturulduğunda tutar bu bakiyeden düşer. Yetersiz bakiye varsa önce yükleme talebi oluşturun."}
               </p>
+              {shippingBlockedForLowBalance && (
+                <p className="mt-3 text-sm font-semibold text-amber-700">{lowBalanceMessage}</p>
+              )}
               <div className="mt-4 rounded-2xl border border-ink-200 bg-ink-50/80 p-4 text-sm text-ink-700">
                 <p className="font-semibold text-ink-900">Bakiye yükleme bilgisi</p>
                 <p className="mt-2">Alıcı: {companySettings?.paymentAccountName || "Henüz tanımlanmadı"}</p>
@@ -364,7 +374,14 @@ export function ShippingPage({
         </Card>
 
         {shippingMode === "quote" ? (
-          <GeliverShippingPanel quote={activeQuote} onChange={onPatchQuote} mode="quote" onShipmentCreated={() => void refreshWalletSummary()} />
+          <GeliverShippingPanel
+            quote={activeQuote}
+            onChange={onPatchQuote}
+            mode="quote"
+            onShipmentCreated={() => void refreshWalletSummary()}
+            disableSubmit={shippingBlockedForLowBalance}
+            disabledReason={lowBalanceMessage}
+          />
         ) : (
           <div className="space-y-4">
             <Card className="p-4">
@@ -390,6 +407,8 @@ export function ShippingPage({
               onChange={patchStandaloneQuote}
               mode="standalone"
               onShipmentCreated={handleStandaloneShipmentCreated}
+              disableSubmit={shippingBlockedForLowBalance}
+              disabledReason={lowBalanceMessage}
             />
           </div>
         )}

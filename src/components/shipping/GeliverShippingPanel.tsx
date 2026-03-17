@@ -10,6 +10,8 @@ interface GeliverShippingPanelProps {
   onChange: (patch: Partial<Quote>) => void;
   mode?: "quote" | "standalone";
   onShipmentCreated?: (shipment: ShipmentResponse, quoteSnapshot: Quote) => void;
+  disableSubmit?: boolean;
+  disabledReason?: string;
 }
 
 interface ShipmentResponse {
@@ -44,6 +46,8 @@ export function GeliverShippingPanel({
   onChange,
   mode = "quote",
   onShipmentCreated,
+  disableSubmit = false,
+  disabledReason = "",
 }: GeliverShippingPanelProps) {
   const [loading, setLoading] = useState(false);
   const [booting, setBooting] = useState(true);
@@ -280,6 +284,11 @@ export function GeliverShippingPanel({
   };
 
   const createShipment = async () => {
+    if (disableSubmit) {
+      setError(disabledReason || "Kargo oluşturma şu anda kullanılamıyor.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -470,10 +479,16 @@ export function GeliverShippingPanel({
             </Button>
           </div>
         </div>
-        <Button onClick={createShipment} type="button" variant="primary" disabled={loading || booting}>
+        <Button onClick={createShipment} type="button" variant="primary" disabled={loading || booting || disableSubmit}>
           {loading ? "Oluşturuluyor..." : mode === "standalone" ? "Bağımsız Kargo Oluştur" : "Geliver Gönderisi Oluştur"}
         </Button>
       </div>
+
+      {disableSubmit && disabledReason && (
+        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          {disabledReason}
+        </div>
+      )}
 
       <div className="mt-5 grid gap-6 lg:grid-cols-2">
         <div className="space-y-4 lg:col-span-2">

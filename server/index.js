@@ -40,6 +40,7 @@ const app = express();
 const port = Number(process.env.PORT || 8787);
 const apiBaseUrl = process.env.GELIVER_API_BASE_URL || "https://api.geliver.io/api/v1";
 const turkeyGeoApiBaseUrl = "https://beterali.com/api/v1";
+const minimumShippingBalance = 150;
 
 app.use(
   rateLimit({
@@ -404,6 +405,12 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
 
     const selectedOffer = selectRequestedOffer(shipmentDraft, quote.geliverProviderServiceCode);
     const estimatedPrice = extractOfferAmount(selectedOffer);
+
+    if (req.user.role !== "admin" && Number(req.user.balance || 0) < minimumShippingBalance) {
+      return res.status(400).json({
+        error: `Kargo kodu oluşturmak için minimum bakiye ${minimumShippingBalance} TL olmalıdır.`,
+      });
+    }
 
     if (req.user.role !== "admin" && estimatedPrice > Number(req.user.balance || 0)) {
       return res.status(400).json({
