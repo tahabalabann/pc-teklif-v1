@@ -51,17 +51,19 @@ export function QuoteWorkspacePage({
       <Card className="sticky top-6 z-10 p-5 print:hidden">
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
-            <p className="text-xs uppercase tracking-[0.16em] text-ink-500">Teklifler / Detay</p>
+            <p className="panel-label">Teklifler / Detay</p>
             <p className="mt-1 text-sm text-ink-600">
               {activeQuote.quoteNo} • {activeQuote.customerName || "Adsız müşteri"}
             </p>
           </div>
+
           <Button onClick={onBackToList} type="button" variant="ghost">
             Teklif Listesine Dön
           </Button>
-          <div className="inline-flex rounded-2xl bg-white p-1 ring-1 ring-inset ring-ink-200 dark-chip">
+
+          <div className="inline-flex rounded-[22px] bg-white/90 p-1 ring-1 ring-inset ring-ink-200 dark-chip">
             <button
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                 mode === "admin" ? "bg-ink-900 text-white" : "text-ink-600"
               }`}
               onClick={() => setMode("admin")}
@@ -70,7 +72,7 @@ export function QuoteWorkspacePage({
               Yönetim
             </button>
             <button
-              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                 mode === "customer" ? "bg-ink-900 text-white" : "text-ink-600"
               }`}
               onClick={() => setMode("customer")}
@@ -79,7 +81,8 @@ export function QuoteWorkspacePage({
               Müşteri
             </button>
           </div>
-          <label className="inline-flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-medium text-ink-700 ring-1 ring-inset ring-ink-200 dark-chip">
+
+          <label className="inline-flex items-center gap-2 rounded-2xl bg-white/90 px-3.5 py-2 text-sm font-medium text-ink-700 ring-1 ring-inset ring-ink-200 dark-chip">
             <input
               checked={showItemPricesInPrint}
               className="h-4 w-4 rounded border-ink-300 text-red-600 focus:ring-red-300"
@@ -88,6 +91,7 @@ export function QuoteWorkspacePage({
             />
             <span>PDF'de parça fiyatlarını tek tek göster</span>
           </label>
+
           <select
             className="field min-w-[220px]"
             value={printTemplate}
@@ -98,6 +102,7 @@ export function QuoteWorkspacePage({
             <option value="products">Sadece Ürün Listesi</option>
             <option value="shipping">Kargo Dahil Teklif</option>
           </select>
+
           <Button onClick={() => void onSaveQuote()} type="button" variant="primary">
             Teklifi Kaydet
           </Button>
@@ -110,6 +115,7 @@ export function QuoteWorkspacePage({
           <Button onClick={onResetQuote} type="button">
             Teklifi Sıfırla
           </Button>
+
           {saveStatusText && (
             <span className={`text-sm ${saveStatusTone === "error" ? "text-red-600" : "text-ink-500"}`}>
               {saveStatusText}

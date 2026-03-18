@@ -7,7 +7,7 @@ export function Card({
 }: PropsWithChildren<HTMLAttributes<HTMLDivElement>>) {
   return (
     <div
-      className={`rounded-2xl border border-white/70 bg-white/95 shadow-soft backdrop-blur ${className}`}
+      className={`rounded-[26px] border border-white/70 bg-white/92 shadow-panel backdrop-blur ${className}`}
       {...props}
     >
       {children}

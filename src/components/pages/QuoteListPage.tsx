@@ -30,13 +30,14 @@ export function QuoteListPage({
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <div className="space-y-6">
-        <Card className="p-5">
+        <Card className="p-6">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.16em] text-ink-500">Teklifler / Liste</p>
-              <h2 className="mt-2 text-lg font-semibold text-ink-900">Teklif Listesi</h2>
-              <p className="mt-1 text-sm text-ink-600">
-                Sağ panelden kayıtlı teklifleri açın. Sol tarafta aktif teklifin kısa özetini görüp detay düzenleme ekranına geçin.
+              <p className="panel-label">Teklifler / Liste</p>
+              <h2 className="display-title mt-2 text-2xl font-semibold text-ink-900">Teklif Listesi</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
+                Sağ panelden kayıtlı teklifleri açın. Sol tarafta aktif teklifin kısa özetini görün, sonra detay
+                düzenleme ekranına geçin.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -49,7 +50,7 @@ export function QuoteListPage({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Info label="Teklif No" value={activeQuote.quoteNo} />
             <Info label="Müşteri" value={activeQuote.customerName || "-"} />
             <Info label="Durum" value={activeQuote.status} />
@@ -78,9 +79,9 @@ export function QuoteListPage({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-ink-200 bg-white/90 p-4">
-      <p className="text-xs uppercase tracking-[0.14em] text-ink-500">{label}</p>
-      <p className="mt-2 text-sm font-semibold text-ink-900">{value}</p>
+    <div className="rounded-[22px] border border-ink-200 bg-white/80 p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-ink-500">{label}</p>
+      <p className="mt-2 text-base font-semibold text-ink-900">{value}</p>
     </div>
   );
 }

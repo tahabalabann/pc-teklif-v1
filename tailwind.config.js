@@ -28,10 +28,12 @@ export default {
         }
       },
       boxShadow: {
-        soft: "0 14px 30px rgba(15, 23, 42, 0.08)"
+        soft: "0 24px 60px rgba(15, 23, 42, 0.10)",
+        panel: "0 18px 45px rgba(122, 18, 18, 0.08)"
       },
       fontFamily: {
-        sans: ["'Segoe UI'", "ui-sans-serif", "system-ui", "sans-serif"]
+        sans: ["'Segoe UI Variable'", "'Segoe UI'", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Georgia", "Cambria", "'Times New Roman'", "serif"]
       }
     }
   },
