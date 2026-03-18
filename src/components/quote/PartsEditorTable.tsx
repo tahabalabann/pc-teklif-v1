@@ -1,4 +1,4 @@
-import { useMemo, useState, type ChangeEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import type { QuoteRow } from "../../types/quote";
 import { partsCatalog } from "../../data/partsCatalog";
 import { DEFAULT_ROW_CATEGORIES, generateId, sanitizeNumber } from "../../utils/quote";
@@ -12,10 +12,50 @@ interface PartsEditorTableProps {
 }
 
 export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
-  const [catalogItemId, setCatalogItemId] = useState(partsCatalog[0]?.id || "");
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("Tum Kategoriler");
+  const [catalogBrandFilter, setCatalogBrandFilter] = useState("Tum Markalar");
+
+  const catalogCategories = useMemo(
+    () => ["Tum Kategoriler", ...Array.from(new Set(partsCatalog.map((item) => item.category))).sort()],
+    [],
+  );
+  const catalogBrands = useMemo(
+    () => ["Tum Markalar", ...Array.from(new Set(partsCatalog.map((item) => item.brand || "Belirsiz"))).sort()],
+    [],
+  );
+
+  const filteredCatalog = useMemo(() => {
+    const query = catalogSearch.trim().toLowerCase();
+
+    return partsCatalog.filter((item) => {
+      const categoryMatch = catalogCategoryFilter === "Tum Kategoriler" || item.category === catalogCategoryFilter;
+      const brandMatch = catalogBrandFilter === "Tum Markalar" || (item.brand || "Belirsiz") === catalogBrandFilter;
+      const searchMatch =
+        !query ||
+        item.product.toLowerCase().includes(query) ||
+        item.category.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        (item.brand || "").toLowerCase().includes(query);
+
+      return categoryMatch && brandMatch && searchMatch;
+    });
+  }, [catalogBrandFilter, catalogCategoryFilter, catalogSearch]);
+
+  const [catalogItemId, setCatalogItemId] = useState(filteredCatalog[0]?.id || partsCatalog[0]?.id || "");
+
+  useEffect(() => {
+    if (!filteredCatalog.length) {
+      return;
+    }
+    if (!filteredCatalog.some((item) => item.id === catalogItemId)) {
+      setCatalogItemId(filteredCatalog[0].id);
+    }
+  }, [catalogItemId, filteredCatalog]);
+
   const selectedCatalogItem = useMemo(
-    () => partsCatalog.find((item) => item.id === catalogItemId) || null,
-    [catalogItemId],
+    () => filteredCatalog.find((item) => item.id === catalogItemId) || partsCatalog.find((item) => item.id === catalogItemId) || null,
+    [catalogItemId, filteredCatalog],
   );
 
   const updateRow = (id: string, field: keyof QuoteRow, value: string | number) => {
@@ -56,7 +96,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
       ...rows,
       {
         id: generateId(),
-        category: "Di\u011fer",
+        category: "Diger",
         product: "",
         description: "",
         purchasePrice: 0,
@@ -103,41 +143,66 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
 
   return (
     <Card className="overflow-hidden">
-      <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 border-b border-ink-100 px-5 py-4">
         <div>
-          <h2 className="text-lg font-semibold text-ink-900">{"Par\u00e7a Listesi"}</h2>
+          <h2 className="text-lg font-semibold text-ink-900">Parca Listesi</h2>
           <p className="mt-1 text-sm text-ink-600">
-            {"Tab ile h\u0131zl\u0131 ilerleyin, gerekirse sat\u0131r ekleyin ve s\u0131ra de\u011fi\u015ftirin."}
+            Arama ve filtre ile katalogdan hizli secim yapin, sonra satira ekleyin.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:items-end">
-          <div className="flex flex-wrap items-center gap-2">
-            <select className="field min-w-[250px]" value={catalogItemId} onChange={(event) => setCatalogItemId(event.target.value)}>
-              {partsCatalog.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.category} - {item.product}
-                </option>
-              ))}
-            </select>
-            <Button onClick={addCatalogItem} type="button" variant="secondary">
-              Katalogdan Ekle
-            </Button>
-            <Button onClick={addRow} type="button" variant="primary">
-              {"Sat\u0131r Ekle"}
-            </Button>
-          </div>
-          {selectedCatalogItem && (
-            <p className="text-xs text-ink-500">
-              {selectedCatalogItem.lastPurchaseNote || formatCurrency(selectedCatalogItem.purchasePrice)} •{" "}
-              {selectedCatalogItem.lastSaleNote || formatCurrency(selectedCatalogItem.salePrice)}
-            </p>
-          )}
+
+        <div className="grid gap-2 xl:grid-cols-[minmax(220px,1fr)_220px_220px_minmax(320px,1.4fr)_auto_auto]">
+          <input
+            className="field"
+            value={catalogSearch}
+            onChange={(event) => setCatalogSearch(event.target.value)}
+            placeholder="Katalogda ara"
+          />
+          <select
+            className="field"
+            value={catalogCategoryFilter}
+            onChange={(event) => setCatalogCategoryFilter(event.target.value)}
+          >
+            {catalogCategories.map((category) => (
+              <option key={category} value={category}>
+                {category}
+              </option>
+            ))}
+          </select>
+          <select className="field" value={catalogBrandFilter} onChange={(event) => setCatalogBrandFilter(event.target.value)}>
+            {catalogBrands.map((brand) => (
+              <option key={brand} value={brand}>
+                {brand}
+              </option>
+            ))}
+          </select>
+          <select className="field min-w-[250px]" value={catalogItemId} onChange={(event) => setCatalogItemId(event.target.value)}>
+            {filteredCatalog.map((item) => (
+              <option key={item.id} value={item.id}>
+                {(item.brand || "Markasiz") + " - " + item.category + " - " + item.product}
+              </option>
+            ))}
+          </select>
+          <Button onClick={addCatalogItem} type="button" variant="secondary">
+            Katalogdan Ekle
+          </Button>
+          <Button onClick={addRow} type="button" variant="primary">
+            Satir Ekle
+          </Button>
         </div>
+
+        {selectedCatalogItem && (
+          <p className="text-xs text-ink-500">
+            {(selectedCatalogItem.brand || "Markasiz") + " • "}
+            {selectedCatalogItem.lastPurchaseNote || formatCurrency(selectedCatalogItem.purchasePrice)} •{" "}
+            {selectedCatalogItem.lastSaleNote || formatCurrency(selectedCatalogItem.salePrice)}
+          </p>
+        )}
       </div>
 
       {rows.length === 0 ? (
         <div className="px-5 py-12 text-center text-sm text-ink-500">
-          {"Hen\u00fcz par\u00e7a sat\u0131r\u0131 yok. \u0130lk sat\u0131r\u0131 ekleyerek sistemi olu\u015fturmaya ba\u015flay\u0131n."}
+          Henuz parca satiri yok. Ilk satiri ekleyerek sistemi olusturmaya baslayin.
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -145,11 +210,11 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             <thead className="bg-ink-50 text-left text-xs uppercase tracking-[0.16em] text-ink-500">
               <tr>
                 <th className="px-4 py-3">Kategori</th>
-                <th className="px-4 py-3">{"\u00dcr\u00fcn / Model"}</th>
-                <th className="px-4 py-3">{"A\u00e7\u0131klama"}</th>
-                <th className="px-4 py-3 text-right">{"Al\u0131\u015f"}</th>
-                <th className="px-4 py-3 text-right">{"Sat\u0131\u015f"}</th>
-                <th className="px-4 py-3 text-right print:hidden">{"\u0130\u015flem"}</th>
+                <th className="px-4 py-3">Urun / Model</th>
+                <th className="px-4 py-3">Aciklama</th>
+                <th className="px-4 py-3 text-right">Alis</th>
+                <th className="px-4 py-3 text-right">Satis</th>
+                <th className="px-4 py-3 text-right print:hidden">Islem</th>
               </tr>
             </thead>
             <tbody>
@@ -173,7 +238,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
                       className="field"
                       value={row.product}
                       onChange={(event) => updateRow(row.id, "product", event.target.value)}
-                      placeholder={"\u00d6rn. RTX 3060 Ti"}
+                      placeholder="Orn. RTX 3060 Ti"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -181,7 +246,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
                       className="field"
                       value={row.description}
                       onChange={(event) => updateRow(row.id, "description", event.target.value)}
-                      placeholder={"K\u0131sa test / kondisyon bilgisi"}
+                      placeholder="Kisa test / kondisyon bilgisi"
                     />
                   </td>
                   <td className="px-4 py-3">
@@ -201,10 +266,10 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
                   <td className="px-4 py-3 print:hidden">
                     <div className="flex justify-end gap-2">
                       <MiniButton disabled={index === 0} onClick={() => moveRow(row.id, "up")}>
-                        {"Yukar\u0131"}
+                        Yukari
                       </MiniButton>
                       <MiniButton disabled={index === rows.length - 1} onClick={() => moveRow(row.id, "down")}>
-                        {"A\u015fa\u011f\u0131"}
+                        Asagi
                       </MiniButton>
                       <MiniButton onClick={() => removeRow(row.id)}>Sil</MiniButton>
                     </div>
