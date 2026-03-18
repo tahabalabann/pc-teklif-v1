@@ -10,18 +10,111 @@ export interface CatalogPartItem {
   lastSaleNote?: string;
 }
 
+const buildCpuDescription = (brand: string, product: string) => {
+  const lower = product.toLowerCase();
+  const generationHint = lower.includes("x3d")
+    ? "onbellek agirlikli oyuncu sistemi icin cok guclu"
+    : lower.includes("g")
+      ? "ekran kartsiz sistem kurulumu icin dahili grafik birimli"
+      : lower.includes("pro")
+        ? "ofis ve kurumsal sistemlerde uzun omurlu kullanim icin uygun"
+        : lower.includes("f")
+          ? "harici ekran karti ile kullanilacak fiyat/performans odakli"
+          : lower.includes("k")
+            ? "kilidi acik, yuksek frekansli performans sistemi icin uygun"
+            : "genel kullanim ve sistem toplama icin referans model";
+
+  if (brand === "AMD") {
+    if (lower.includes("ryzen 9")) {
+      return `ust seviye oyuncu ve render sistemi icin guclu secenek, ${generationHint}`;
+    }
+    if (lower.includes("ryzen 7")) {
+      return `oyuncu, yayin ve coklu gorev kullanimi icin dengeli secim, ${generationHint}`;
+    }
+    if (lower.includes("ryzen 5")) {
+      return `oyuncu ve gunluk performans sistemi icin populer tercih, ${generationHint}`;
+    }
+    if (lower.includes("ryzen 3")) {
+      return `giris-orta seviye sistemler icin butce dostu secim, ${generationHint}`;
+    }
+    return `AMD platformu icin masaustu referans islemci, ${generationHint}`;
+  }
+
+  if (lower.includes("i9")) {
+    return `ust seviye oyun ve profesyonel is yukleri icin guclu Intel secenegi, ${generationHint}`;
+  }
+  if (lower.includes("i7")) {
+    return `oyun, is ve coklu gorev kullaniminda yuksek performans sunan Intel model, ${generationHint}`;
+  }
+  if (lower.includes("i5")) {
+    return `fiyat/performans odakli oyuncu ve ofis sistemi icin dengeli Intel secenegi, ${generationHint}`;
+  }
+  if (lower.includes("i3")) {
+    return `giris ve orta segment masaustu sistemler icin uygun Intel modeli, ${generationHint}`;
+  }
+  return `Intel platformu icin masaustu referans islemci, ${generationHint}`;
+};
+
+const buildGpuDescription = (brand: string, product: string) => {
+  const lower = product.toLowerCase();
+  const vramHint = lower.includes("16gb")
+    ? "yuksek bellek isteyen oyun ve is yukleri icin uygun"
+    : lower.includes("12gb")
+      ? "1440p ve ustu kullanim icin elverisli"
+      : lower.includes("8gb")
+        ? "1080p ve dengeli oyuncu sistemleri icin ideal"
+        : lower.includes("6gb")
+          ? "butce dostu oyuncu sistemi icin yeterli"
+          : "genel masaustu ekran karti referansi";
+
+  if (brand === "AMD") {
+    if (lower.includes("7900") || lower.includes("9070")) {
+      return `ust seviye AMD ekran karti, 2K/4K odakli sistemler icin guclu secenek, ${vramHint}`;
+    }
+    if (lower.includes("7800") || lower.includes("7700") || lower.includes("6900") || lower.includes("6800")) {
+      return `ust-orta segment AMD ekran karti, yuksek ayar oyuncu sistemi icin uygun, ${vramHint}`;
+    }
+    if (lower.includes("6700") || lower.includes("6650") || lower.includes("6600") || lower.includes("7600")) {
+      return `fiyat/performans odakli AMD ekran karti, oyuncu sistemi icin guclu tercih, ${vramHint}`;
+    }
+    return `AMD Radeon masaustu referans modeli, ${vramHint}`;
+  }
+
+  if (lower.includes("5090") || lower.includes("5080") || lower.includes("4090") || lower.includes("4080")) {
+    return `ust seviye GeForce modeli, 2K/4K ve profesyonel kullanim icin guclu secenek, ${vramHint}`;
+  }
+  if (lower.includes("5070") || lower.includes("4070") || lower.includes("3090") || lower.includes("3080")) {
+    return `ust-orta segment GeForce modeli, yuksek ayar oyuncu sistemi icin uygun, ${vramHint}`;
+  }
+  if (lower.includes("5060") || lower.includes("4060") || lower.includes("3070") || lower.includes("3060")) {
+    return `oyuncu sistemi icin dengeli GeForce secenegi, ${vramHint}`;
+  }
+  return `NVIDIA GeForce masaustu referans modeli, ${vramHint}`;
+};
+
+const buildReferenceDescription = (category: string, brand: string, product: string) => {
+  if (category === "Islemci") {
+    return buildCpuDescription(brand, product);
+  }
+
+  if (category === "Ekran Karti") {
+    return buildGpuDescription(brand, product);
+  }
+
+  return "Referans urun - detayli fiyat ve kondisyon bilgisi girilmedi";
+};
+
 const createReferencePart = (
   id: string,
   category: string,
   brand: string,
   product: string,
-  description: string,
 ): CatalogPartItem => ({
   id,
   category,
   brand,
   product,
-  description,
+  description: buildReferenceDescription(category, brand, product),
   purchasePrice: 0,
   salePrice: 0,
   lastPurchaseNote: "Referans urun - fiyat girilmedi",
@@ -340,13 +433,13 @@ const geforceNames = [
 ];
 
 const referenceCpu = [
-  ...amdRyzenNames.map((name) => createReferencePart(`cpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Islemci", "AMD", name, "AMD Ryzen masaustu referans model")),
-  ...intelCoreNames.map((name) => createReferencePart(`cpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Islemci", "Intel", name, "Intel Core masaustu referans model")),
+  ...amdRyzenNames.map((name) => createReferencePart(`cpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Islemci", "AMD", name)),
+  ...intelCoreNames.map((name) => createReferencePart(`cpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Islemci", "Intel", name)),
 ];
 
 const referenceGpu = [
-  ...radeonNames.map((name) => createReferencePart(`gpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Ekran Karti", "AMD", name, "AMD Radeon masaustu referans model")),
-  ...geforceNames.map((name) => createReferencePart(`gpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Ekran Karti", "NVIDIA", name, "NVIDIA GeForce masaustu referans model")),
+  ...radeonNames.map((name) => createReferencePart(`gpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Ekran Karti", "AMD", name)),
+  ...geforceNames.map((name) => createReferencePart(`gpu-${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, "Ekran Karti", "NVIDIA", name)),
 ];
 
 const baseCatalog: CatalogPartItem[] = [
