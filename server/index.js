@@ -1,6 +1,8 @@
 import "dotenv/config";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import { disconnectStore } from "./db.js";
+import { ensureSeedAdmin } from "./bootstrapStore.js";
 import { turkeyCities } from "./turkeyCities.js";
 import {
   authenticateUser,
@@ -19,8 +21,6 @@ import {
   deleteSenderAddressBookEntryForUser,
   deleteUserForAdmin,
   deleteSession,
-  disconnectStore,
-  ensureSeedAdmin,
   getCompanyReportsForUser,
   getDashboardSummaryForUser,
   getWalletSummaryForUser,

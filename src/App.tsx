@@ -14,8 +14,8 @@ import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { defaultTemplates } from "./data/templates";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import { useNotificationsState } from "./hooks/useNotificationsState";
 import type {
-  AppNotification,
   AppUser,
   AuthSession,
   CompanyRecord,
@@ -23,18 +23,11 @@ import type {
   PrintTemplateMode,
   Quote,
 } from "./types/quote";
-import { authApi, notificationsApi, quotesApi, sessionStorageApi, settingsApi } from "./utils/api";
+import { authApi, quotesApi, sessionStorageApi, settingsApi } from "./utils/api";
 import { formatDateTime } from "./utils/date";
 import { cloneQuote, createEmptyQuote, sanitizeQuote, touchQuote } from "./utils/quote";
-
-const roleRouteAccess: Record<AppUser["role"], Array<"dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings">> = {
-  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "accounting", "settings"],
-  accounting: ["companies", "accounting"],
-  operations: ["quotes", "quote-detail", "shipping", "companies"],
-  shipping: ["shipping", "companies"],
-  sales: ["quotes", "quote-detail", "companies"],
-  staff: ["quotes", "quote-detail", "shipping", "companies"],
-};
+import { canAccessRoute } from "./utils/routeAccess";
+import { applyCompanyDefaults, createDefaultQuote, draftKey, loadDraftForUser } from "./utils/quoteWorkspace";
 
 function App() {
   const { route, setRoute } = useHashRoute("dashboard");
@@ -50,7 +43,6 @@ function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [savedQuotes, setSavedQuotes] = useState<Quote[]>([]);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [currentQuote, setCurrentQuote] = useState<Quote>(createEmptyQuote());
   const [isBooting, setIsBooting] = useState(true);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
@@ -64,6 +56,7 @@ function App() {
 
   const activeQuote = useMemo(() => sanitizeQuote(currentQuote), [currentQuote]);
   const normalizedSavedQuotes = useMemo(() => savedQuotes.map(sanitizeQuote), [savedQuotes]);
+  const { notifications, setNotifications, markAllRead } = useNotificationsState(session?.user ?? null, route);
 
   useEffect(() => {
     const token = sessionStorageApi.getToken();
@@ -106,36 +99,6 @@ function App() {
       setRoute(session.user.role === "admin" ? "settings" : "quotes");
     }
   }, [route, session, setRoute]);
-
-  useEffect(() => {
-    if (!session) {
-      setNotifications([]);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadNotifications = async () => {
-      try {
-        const items = await notificationsApi.list();
-        if (!cancelled) {
-          setNotifications(items);
-        }
-      } catch {
-        if (!cancelled) {
-          setNotifications([]);
-        }
-      }
-    };
-
-    void loadNotifications();
-    const intervalId = window.setInterval(() => void loadNotifications(), 30000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(intervalId);
-    };
-  }, [route, session]);
 
   useEffect(() => {
     if (!session || !hasHydratedQuoteRef.current) {
@@ -409,13 +372,7 @@ function App() {
   };
 
   const handleMarkAllNotificationsRead = async () => {
-    await notificationsApi.markAllRead();
-    setNotifications((prev) =>
-      prev.map((notification) => ({
-        ...notification,
-        readAt: notification.readAt || new Date().toISOString(),
-      })),
-    );
+    await markAllRead();
   };
 
   const saveStatusText = (() => {
@@ -574,39 +531,6 @@ function App() {
       </div>
     </div>
   );
-}
-
-function draftKey(user: AppUser) {
-  return `pc-teklif:draftQuote:${user.id}`;
-}
-
-function loadDraftForUser(user: AppUser) {
-  try {
-    const raw = window.localStorage.getItem(draftKey(user));
-    return raw ? sanitizeQuote(JSON.parse(raw) as Quote) : null;
-  } catch {
-    return null;
-  }
-}
-
-function createDefaultQuote(user: AppUser, companySettings: CompanySettings | null) {
-  return applyCompanyDefaults(createEmptyQuote(), user, companySettings);
-}
-
-function applyCompanyDefaults(baseQuote: Quote, user: AppUser, companySettings: CompanySettings | null) {
-  return sanitizeQuote({
-    ...baseQuote,
-    companyName: companySettings?.companyName || user.companyName || baseQuote.companyName,
-    companyLogo: companySettings?.logoUrl || baseQuote.companyLogo,
-    sellerInfo: companySettings?.sellerInfo || baseQuote.sellerInfo,
-  });
-}
-
-function canAccessRoute(
-  user: AppUser,
-  route: "dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings",
-) {
-  return roleRouteAccess[user.role].includes(route);
 }
 
 export default App;

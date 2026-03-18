@@ -8,17 +8,20 @@ datasource db {
 }
 
 model Organization {
-  id        String @id
-  name      String
-  logoUrl   String?
-  phone     String?
-  email     String?
-  address   String?
-  sellerInfo String?
+  id                 String        @id
+  name               String
+  logoUrl            String?
+  phone              String?
+  email              String?
+  address            String?
+  sellerInfo         String?
   paymentAccountName String?
-  paymentIban String?
-  createdAt String
-  users     User[]
+  paymentIban        String?
+  notes              String?
+  isActive           Boolean       @default(true)
+  createdAt          String
+  users              User[]
+  walletLedger       WalletLedger[]
 }
 
 model User {
@@ -29,9 +32,11 @@ model User {
   createdAt         String
   passwordHash      String
   passwordSalt      String
-  balance           Float?
+  balance           Float          @default(0)
   companyId         String?
   company           Organization?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  isPlatformAdmin   Boolean        @default(false)
+  isActive          Boolean        @default(true)
   quotes            Quote[]
   addressBook       AddressBookEntry[]
   senderAddressBook SenderAddressBookEntry[]
@@ -41,6 +46,8 @@ model User {
   approvedRequests  DepositRequest[]     @relation("DepositApprover")
   notifications     Notification[]
   sessions          Session[]
+  walletLedger      WalletLedger[] @relation("WalletLedgerUser")
+  walletCreated     WalletLedger[] @relation("WalletLedgerCreator")
 }
 
 model Quote {
@@ -119,4 +126,32 @@ model Session {
   lastSeenAt String
   expiresAt  String?
   user       User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model WalletLedger {
+  id              String        @id
+  userId          String
+  companyId       String
+  type            String
+  amount          Float
+  balanceAfter    Float
+  note            String
+  createdAt       String
+  createdByUserId String?
+  data            String
+  user            User          @relation("WalletLedgerUser", fields: [userId], references: [id], onDelete: Cascade)
+  company         Organization  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdByUser   User?         @relation("WalletLedgerCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+}
+
+model AuditLog {
+  id          String @id
+  companyId   String?
+  actorUserId String?
+  action      String
+  entityType  String
+  entityId    String
+  message     String
+  data        String
+  createdAt   String
 }

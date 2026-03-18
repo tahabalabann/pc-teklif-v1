@@ -36,6 +36,7 @@ Kritik alanlar:
 - `GELIVER_API_TOKEN`
 - `ADMIN_EMAIL`
 - `ADMIN_PASSWORD`
+- `ALLOW_PRODUCTION_ADMIN_SEED`
 - `DATABASE_URL`
 
 ## Production Kurulumu
@@ -49,6 +50,15 @@ cp .env.example .env
 ```
 
 2. Ortam degiskenlerini doldurun.
+
+Production ortaminda otomatik admin seed varsayilan olarak kapalidir.
+Ilk kurulumda otomatik admin olusturmak istiyorsaniz:
+
+```env
+ALLOW_PRODUCTION_ADMIN_SEED=true
+```
+
+Ilk admin olustuktan sonra tekrar `false` yapmaniz onerilir.
 
 3. Bagimliliklari kurun ve build alin:
 
