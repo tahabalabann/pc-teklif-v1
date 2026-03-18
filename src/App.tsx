@@ -410,9 +410,7 @@ function App() {
   return (
     <div
       className={`min-h-screen ${
-        theme === "dark"
-          ? "theme-dark bg-[radial-gradient(circle_at_top_left,_rgba(220,38,38,0.18),_transparent_24%),linear-gradient(180deg,_#111827_0%,_#0f172a_100%)]"
-          : "bg-[radial-gradient(circle_at_top_left,_rgba(220,38,38,0.10),_transparent_28%),linear-gradient(180deg,_#fff7f7_0%,_#f5f5f5_100%)]"
+        theme === "dark" ? "theme-dark bg-[#0f172a]" : "bg-[#f3f4f6]"
       }`}
     >
       <div className="screen-only mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">

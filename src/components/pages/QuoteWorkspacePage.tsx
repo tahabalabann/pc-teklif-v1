@@ -48,48 +48,48 @@ export function QuoteWorkspacePage({
 
   return (
     <div className="space-y-6">
-      <Card className="sticky top-6 z-10 p-5 print:hidden">
+      <Card className="sticky top-4 z-10 p-5 print:hidden">
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <p className="panel-label">Teklifler / Detay</p>
             <p className="mt-1 text-sm text-ink-600">
-              {activeQuote.quoteNo} • {activeQuote.customerName || "Adsız müşteri"}
+              {activeQuote.quoteNo} • {activeQuote.customerName || "Adsiz musteri"}
             </p>
           </div>
 
           <Button onClick={onBackToList} type="button" variant="ghost">
-            Teklif Listesine Dön
+            Teklif Listesine Don
           </Button>
 
-          <div className="inline-flex rounded-[22px] bg-white/90 p-1 ring-1 ring-inset ring-ink-200 dark-chip">
+          <div className="inline-flex rounded-lg bg-ink-50 p-1 ring-1 ring-inset ring-ink-200 dark-chip">
             <button
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
                 mode === "admin" ? "bg-ink-900 text-white" : "text-ink-600"
               }`}
               onClick={() => setMode("admin")}
               type="button"
             >
-              Yönetim
+              Yonetim
             </button>
             <button
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+              className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
                 mode === "customer" ? "bg-ink-900 text-white" : "text-ink-600"
               }`}
               onClick={() => setMode("customer")}
               type="button"
             >
-              Müşteri
+              Musteri
             </button>
           </div>
 
-          <label className="inline-flex items-center gap-2 rounded-2xl bg-white/90 px-3.5 py-2 text-sm font-medium text-ink-700 ring-1 ring-inset ring-ink-200 dark-chip">
+          <label className="inline-flex items-center gap-2 rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-ink-700 ring-1 ring-inset ring-ink-200 dark-chip">
             <input
               checked={showItemPricesInPrint}
               className="h-4 w-4 rounded border-ink-300 text-red-600 focus:ring-red-300"
               onChange={(event) => onShowItemPricesChange(event.target.checked)}
               type="checkbox"
             />
-            <span>PDF'de parça fiyatlarını tek tek göster</span>
+            <span>PDF'de parca fiyatlarini tek tek goster</span>
           </label>
 
           <select
@@ -99,7 +99,7 @@ export function QuoteWorkspacePage({
           >
             <option value="standard">Standart Teklif</option>
             <option value="proforma">Resmi Proforma</option>
-            <option value="products">Sadece Ürün Listesi</option>
+            <option value="products">Sadece Urun Listesi</option>
             <option value="shipping">Kargo Dahil Teklif</option>
           </select>
 
@@ -113,7 +113,7 @@ export function QuoteWorkspacePage({
             Yeni Teklif
           </Button>
           <Button onClick={onResetQuote} type="button">
-            Teklifi Sıfırla
+            Teklifi Sifirla
           </Button>
 
           {saveStatusText && (

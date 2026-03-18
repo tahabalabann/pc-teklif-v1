@@ -34,10 +34,10 @@ export function QuoteListPage({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="panel-label">Teklifler / Liste</p>
-              <h2 className="display-title mt-2 text-2xl font-semibold text-ink-900">Teklif Listesi</h2>
+              <h2 className="mt-2 text-2xl font-semibold text-ink-900">Teklif Listesi</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-600">
-                Sağ panelden kayıtlı teklifleri açın. Sol tarafta aktif teklifin kısa özetini görün, sonra detay
-                düzenleme ekranına geçin.
+                Sag panelden kayitli teklifleri acin. Sol tarafta aktif teklifin kisa ozetini gorup detay
+                duzenleme ekranina gecebilirsiniz.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -45,21 +45,21 @@ export function QuoteListPage({
                 Yeni Teklif
               </Button>
               <Button onClick={onOpenDetail} type="button" variant="primary">
-                Teklif Detayına Geç
+                Teklif Detayina Gec
               </Button>
             </div>
           </div>
 
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <Info label="Teklif No" value={activeQuote.quoteNo} />
-            <Info label="Müşteri" value={activeQuote.customerName || "-"} />
+            <Info label="Musteri" value={activeQuote.customerName || "-"} />
             <Info label="Durum" value={activeQuote.status} />
             <Info label="Toplam" value={formatCurrency(calculateGrandTotal(activeQuote))} />
           </div>
 
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Info label="Tarih" value={formatDisplayDate(activeQuote.date)} />
-            <Info label="Son Güncelleme" value={formatDateTime(activeQuote.updatedAt)} />
+            <Info label="Son Guncelleme" value={formatDateTime(activeQuote.updatedAt)} />
           </div>
         </Card>
       </div>
@@ -79,7 +79,7 @@ export function QuoteListPage({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-[22px] border border-ink-200 bg-white/80 p-4">
+    <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
       <p className="text-xs uppercase tracking-[0.16em] text-ink-500">{label}</p>
       <p className="mt-2 text-base font-semibold text-ink-900">{value}</p>
     </div>
