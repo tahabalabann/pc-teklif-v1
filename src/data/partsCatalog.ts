@@ -10,95 +10,126 @@ export interface CatalogPartItem {
   lastSaleNote?: string;
 }
 
-const buildCpuDescription = (brand: string, product: string) => {
+const getCpuSpecs = (product: string) => {
   const lower = product.toLowerCase();
-  const generationHint = lower.includes("x3d")
-    ? "onbellek agirlikli oyuncu sistemi icin cok guclu"
-    : lower.includes("g")
-      ? "ekran kartsiz sistem kurulumu icin dahili grafik birimli"
-      : lower.includes("pro")
-        ? "ofis ve kurumsal sistemlerde uzun omurlu kullanim icin uygun"
-        : lower.includes("f")
-          ? "harici ekran karti ile kullanilacak fiyat/performans odakli"
-          : lower.includes("k")
-            ? "kilidi acik, yuksek frekansli performans sistemi icin uygun"
-            : "genel kullanim ve sistem toplama icin referans model";
 
-  if (brand === "AMD") {
-    if (lower.includes("ryzen 9")) {
-      return `ust seviye oyuncu ve render sistemi icin guclu secenek, ${generationHint}`;
-    }
-    if (lower.includes("ryzen 7")) {
-      return `oyuncu, yayin ve coklu gorev kullanimi icin dengeli secim, ${generationHint}`;
-    }
-    if (lower.includes("ryzen 5")) {
-      return `oyuncu ve gunluk performans sistemi icin populer tercih, ${generationHint}`;
-    }
-    if (lower.includes("ryzen 3")) {
-      return `giris-orta seviye sistemler icin butce dostu secim, ${generationHint}`;
-    }
-    return `AMD platformu icin masaustu referans islemci, ${generationHint}`;
+  if (lower.includes("ryzen 9")) {
+    if (/\b3900|\b7900|\b9900/.test(lower)) return "12C/24T";
+    if (/\b3950|\b5950|\b7950|\b9950/.test(lower)) return "16C/32T";
+  }
+
+  if (lower.includes("ryzen 7")) {
+    return "8C/16T";
+  }
+
+  if (lower.includes("ryzen 5")) {
+    if (/\b8400f\b/.test(lower)) return "6C/12T";
+    return "6C/12T";
+  }
+
+  if (lower.includes("ryzen 3")) {
+    return "4C/8T";
   }
 
   if (lower.includes("i9")) {
-    return `ust seviye oyun ve profesyonel is yukleri icin guclu Intel secenegi, ${generationHint}`;
+    if (/\b12900|\b13900|\b14900/.test(lower)) return "24C/32T";
+    if (/\b10850|\b10900|\b11900/.test(lower)) return "10C/20T";
+    if (/\b9900\b/.test(lower)) return "8C/16T";
   }
+
   if (lower.includes("i7")) {
-    return `oyun, is ve coklu gorev kullaniminda yuksek performans sunan Intel model, ${generationHint}`;
+    if (/\b12700|\b13700|\b14700/.test(lower)) return "12C+/20T";
+    if (/\b10700|\b11700/.test(lower)) return "8C/16T";
+    if (/\b9700\b/.test(lower)) return "8C/8T";
+    if (/\b8700\b|\b7700\b|\b6700\b|\b4770\b|\b3770\b|\b2600\b/.test(lower)) return "6C-/12T";
   }
+
   if (lower.includes("i5")) {
-    return `fiyat/performans odakli oyuncu ve ofis sistemi icin dengeli Intel secenegi, ${generationHint}`;
+    if (/\b13600|\b14600\b/.test(lower)) return "14C/20T";
+    if (/\b13400|\b14400\b/.test(lower)) return "10C/16T";
+    if (/\b12600\b/.test(lower)) return "6C+/12T";
+    if (/\b12400|\b11400|\b10400/.test(lower)) return "6C/12T";
+    if (/\b10600|\b9600|\b8600|\b7600|\b6600|\b4670|\b3570|\b2500/.test(lower)) return "6C/6T";
+    if (/\b8500|\b8400\b/.test(lower)) return "6C/6T";
+    if (/\b7500|\b7400|\b6500|\b6400|\b4570|\b4460|\b4430|\b3470|\b3330|\b2400|\b2300/.test(lower)) return "4C/4T";
+    if (/\b750\b/.test(lower)) return "4C/4T";
+    if (/\b650\b/.test(lower)) return "2C/4T";
   }
+
   if (lower.includes("i3")) {
-    return `giris ve orta segment masaustu sistemler icin uygun Intel modeli, ${generationHint}`;
+    if (/\b14100|\b13100|\b12100|\b11100|\b10320|\b10100\b/.test(lower)) return "4C/8T";
+    if (/\b9100|\b8100\b/.test(lower)) return "4C/4T";
+    if (/\b7100|\b6100|\b4130|\b3220|\b2100\b/.test(lower)) return "2C/4T";
+    if (/\b540|\b530\b/.test(lower)) return "2C/4T";
   }
-  return `Intel platformu icin masaustu referans islemci, ${generationHint}`;
+
+  return "";
 };
 
-const buildGpuDescription = (brand: string, product: string) => {
+const buildCpuDescription = (product: string) => {
+  const specs = getCpuSpecs(product);
+  const suffixes = [];
   const lower = product.toLowerCase();
-  const vramHint = lower.includes("16gb")
-    ? "yuksek bellek isteyen oyun ve is yukleri icin uygun"
-    : lower.includes("12gb")
-      ? "1440p ve ustu kullanim icin elverisli"
-      : lower.includes("8gb")
-        ? "1080p ve dengeli oyuncu sistemleri icin ideal"
-        : lower.includes("6gb")
-          ? "butce dostu oyuncu sistemi icin yeterli"
-          : "genel masaustu ekran karti referansi";
 
-  if (brand === "AMD") {
-    if (lower.includes("7900") || lower.includes("9070")) {
-      return `ust seviye AMD ekran karti, 2K/4K odakli sistemler icin guclu secenek, ${vramHint}`;
-    }
-    if (lower.includes("7800") || lower.includes("7700") || lower.includes("6900") || lower.includes("6800")) {
-      return `ust-orta segment AMD ekran karti, yuksek ayar oyuncu sistemi icin uygun, ${vramHint}`;
-    }
-    if (lower.includes("6700") || lower.includes("6650") || lower.includes("6600") || lower.includes("7600")) {
-      return `fiyat/performans odakli AMD ekran karti, oyuncu sistemi icin guclu tercih, ${vramHint}`;
-    }
-    return `AMD Radeon masaustu referans modeli, ${vramHint}`;
-  }
+  if (lower.includes("x3d")) suffixes.push("3D V-Cache");
+  if (lower.includes("pro")) suffixes.push("PRO");
+  if (/\bg\b/.test(lower.split(" ").pop() || "")) suffixes.push("iGPU");
+  if (/\bf\b/.test(lower.split(" ").pop() || "")) suffixes.push("iGPU yok");
+  if (/\bk\b/.test(lower.split(" ").pop() || "")) suffixes.push("Unlocked");
 
-  if (lower.includes("5090") || lower.includes("5080") || lower.includes("4090") || lower.includes("4080")) {
-    return `ust seviye GeForce modeli, 2K/4K ve profesyonel kullanim icin guclu secenek, ${vramHint}`;
-  }
-  if (lower.includes("5070") || lower.includes("4070") || lower.includes("3090") || lower.includes("3080")) {
-    return `ust-orta segment GeForce modeli, yuksek ayar oyuncu sistemi icin uygun, ${vramHint}`;
-  }
-  if (lower.includes("5060") || lower.includes("4060") || lower.includes("3070") || lower.includes("3060")) {
-    return `oyuncu sistemi icin dengeli GeForce secenegi, ${vramHint}`;
-  }
-  return `NVIDIA GeForce masaustu referans modeli, ${vramHint}`;
+  return [specs, ...suffixes].filter(Boolean).join(", ") || "Teknik bilgi girilmedi";
 };
 
-const buildReferenceDescription = (category: string, brand: string, product: string) => {
+const getGpuVram = (product: string) => {
+  const lower = product.toLowerCase();
+
+  const direct = product.match(/(\d+)\s*gb/i);
+  if (direct) {
+    return `${direct[1]}GB VRAM`;
+  }
+
+  if (/1030|1630|1050 ti|1650|1650 super|1660|1660 super|1660 ti|2060|3050|3060 ti|4060\b|4060 ti/.test(lower)) {
+    return "8GB VRAM";
+  }
+  if (/1060 3gb/.test(lower)) {
+    return "3GB VRAM";
+  }
+  if (/1060 6gb|2060|2060 super/.test(lower)) {
+    return "6GB VRAM";
+  }
+  if (/1070|1070 ti|1080|2070|2070 super|2080|2080 super|3060\b|3070|3070 ti|3080 10gb|4070\b|4070 super|4070 ti|4070 ti super|5070\b|5070 ti/.test(lower)) {
+    return "8-12GB VRAM";
+  }
+  if (/1080 ti|2080 ti|3080 ti|3080 12gb|3090|3090 ti|4080|4080 super|4090|5080|5090/.test(lower)) {
+    return "12GB+ VRAM";
+  }
+  if (/r7 240|r7 250|r7 360|r7 370|rx 460|rx 550|rx 560/.test(lower)) {
+    return "2-4GB VRAM";
+  }
+  if (/260x|r9 270|r9 270x|r9 280|r9 280x|r9 285|rx 470|rx 480|rx 570|rx 580|rx 590|rx 6500 xt|rx 6600|rx 7600\b/.test(lower)) {
+    return "4-8GB VRAM";
+  }
+  if (/r9 290|r9 290x|r9 380|r9 380x|r9 390|r9 390x|rx 5300|rx 5500 xt|rx 5600 xt|rx 5700|rx 5700 xt|rx 6400|rx 6600 xt|rx 6650 xt|rx 6700|rx 6700 xt|rx 6750 xt|rx 7600 xt|rx 7700 xt/.test(lower)) {
+    return "8-12GB VRAM";
+  }
+  if (/rx 6800|rx 6800 xt|rx 6900 xt|rx 6950 xt|rx 7800 xt|rx 7900 gre|rx 7900 xt|rx 7900 xtx|rx 9070|rx 9070 xt/.test(lower)) {
+    return "16GB+ VRAM";
+  }
+
+  return "";
+};
+
+const buildGpuDescription = (product: string) => {
+  return getGpuVram(product) || "VRAM bilgisi girilmedi";
+};
+
+const buildReferenceDescription = (category: string, _brand: string, product: string) => {
   if (category === "Islemci") {
-    return buildCpuDescription(brand, product);
+    return buildCpuDescription(product);
   }
 
   if (category === "Ekran Karti") {
-    return buildGpuDescription(brand, product);
+    return buildGpuDescription(product);
   }
 
   return "Referans urun - detayli fiyat ve kondisyon bilgisi girilmedi";
