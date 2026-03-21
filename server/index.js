@@ -46,12 +46,17 @@ import {
   saveAddressBookEntryForUser,
   saveCompanyForUser,
   saveQuoteForUser,
+  getPublicQuoteById,
+  updatePublicQuoteStatus,
   saveShipmentRecordForUser,
   saveSenderAddressBookEntryForUser,
   toggleOrganizationActiveAsPlatformAdmin,
   toggleUserActiveForAdmin,
   updateOrganizationAsPlatformAdmin,
   updateOrganizationForUser,
+  listProductsForUser,
+  saveProductForUser,
+  deleteProductForUser,
 } from "./store.js";
 
 const app = express();
@@ -434,6 +439,96 @@ app.put("/api/quotes/:id", requireAuth, async (req, res) => {
 
 app.delete("/api/quotes/:id", requireAuth, async (req, res) => {
   await deleteQuoteForUser(req.user, req.params.id);
+  return res.json({ ok: true });
+});
+
+app.get("/api/public/quotes/:id", async (req, res) => {
+  try {
+    const quote = await getPublicQuoteById(req.params.id);
+    if (!quote) {
+      return res.status(404).json({ error: "Teklif bulunamadı veya ulaşılamıyor." });
+    }
+    // Basic redaction (could hide internal notes if needed)
+    return res.json({ quote });
+  } catch (error) {
+    return res.status(500).json({ error: "Sunucu hatası" });
+  }
+});
+
+app.post("/api/public/quotes/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (status !== "Onaylandı" && status !== "Reddedildi") {
+      return res.status(400).json({ error: "Geçersiz durum." });
+    }
+    const quote = await updatePublicQuoteStatus(req.params.id, status);
+    return res.json({ quote });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Teklif durumu güncellenemedi.",
+    });
+  }
+});
+
+let cachedRates = null;
+let lastRatesFetch = 0;
+
+app.get("/api/rates", requireAuth, async (req, res) => {
+  try {
+    const now = Date.now();
+    if (cachedRates && (now - lastRatesFetch < 1000 * 60 * 60)) {
+      return res.json({ rates: cachedRates });
+    }
+    
+    // We use a fallback agent if needed, but native fetch works fine
+    const response = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml");
+    const xml = await response.text();
+    
+    const extractAnyRate = (currencyCode) => {
+      const blockRegex = new RegExp(`<Currency[^>]*CurrencyCode="${currencyCode}"[^>]*>([\\s\\S]*?)</Currency>`, 'i');
+      const blockMatch = xml.match(blockRegex);
+      if (!blockMatch) return null;
+      const rateMatch = blockMatch[1].match(/<(BanknoteSelling|ForexSelling)>([\\d\\.]+)/i);
+      return rateMatch ? parseFloat(rateMatch[2]) : null;
+    };
+
+    const rates = {
+      TRY: 1,
+      USD: extractAnyRate("USD") || 34.00,
+      EUR: extractAnyRate("EUR") || 37.00,
+      GBP: extractAnyRate("GBP") || 44.00,
+    };
+    
+    cachedRates = rates;
+    lastRatesFetch = now;
+    return res.json({ rates });
+  } catch (error) {
+    return res.status(500).json({ error: "Kurlar çekilemedi" });
+  }
+});
+
+app.get("/api/products", requireAuth, async (req, res) => {
+  res.json({ products: await listProductsForUser(req.user) });
+});
+
+app.post("/api/products", requireAuth, async (req, res) => {
+  const product = req.body?.product;
+  if (!product?.name) {
+    return res.status(400).json({ error: "Ürün adı zorunludur." });
+  }
+
+  try {
+    const savedProduct = await saveProductForUser(req.user, product);
+    return res.status(201).json({ product: savedProduct });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Ürün kaydedilemedi.",
+    });
+  }
+});
+
+app.delete("/api/products/:id", requireAuth, async (req, res) => {
+  await deleteProductForUser(req.user, req.params.id);
   return res.json({ ok: true });
 });
 

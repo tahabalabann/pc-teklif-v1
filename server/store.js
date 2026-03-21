@@ -1320,6 +1320,29 @@ export async function deleteQuoteForUser(user, quoteId) {
   await prisma.$executeRawUnsafe(`DELETE FROM "Quote" WHERE "id" = ?`, quoteId);
 }
 
+export async function getPublicQuoteById(id) {
+  const rows = await prisma.$queryRawUnsafe(`SELECT "data" FROM "Quote" WHERE "id" = ? LIMIT 1`, id);
+  if (!rows[0]) return null;
+  return JSON.parse(rows[0].data);
+}
+
+export async function updatePublicQuoteStatus(id, status) {
+  const quote = await getPublicQuoteById(id);
+  if (!quote) throw new Error("Teklif bulunamadı.");
+  
+  quote.status = status;
+  quote.updatedAt = new Date().toISOString();
+  
+  await prisma.$executeRawUnsafe(
+    `UPDATE "Quote" SET "data" = ?, "updatedAt" = ? WHERE "id" = ?`,
+    JSON.stringify(quote),
+    quote.updatedAt,
+    id
+  );
+  
+  return quote;
+}
+
 export async function listAddressBookForUser(user) {
   const rows = await prisma.$queryRawUnsafe(
     `
@@ -1860,3 +1883,80 @@ async function assertOwnedByCompanyOrThrow(tableName, recordId, companyId, messa
   }
 }
 
+// ============================================================================
+// Product Catalog (Ürün Kataloğu)
+// ============================================================================
+
+export async function listProductsForUser(user) {
+  const rows = await prisma.$queryRawUnsafe(
+    `
+      SELECT p."id", p."data", p."createdAt", p."updatedAt"
+      FROM "ProductCatalogEntry" p
+      JOIN "User" u ON u."id" = p."ownerUserId"
+      WHERE u."companyId" = ?
+      ORDER BY p."updatedAt" DESC
+    `,
+    user.companyId,
+  );
+
+  return rows.map((row) => ({
+    ...JSON.parse(row.data),
+    id: row.id,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }));
+}
+
+export async function saveProductForUser(user, product) {
+  const now = new Date().toISOString();
+  import("node:crypto").then(({ randomUUID }) => {}).catch(()=>{}); // Ensuring it exists
+  const crypto = await import("node:crypto");
+  const randomUUID = crypto.randomUUID;
+
+  const id = product.id || randomUUID();
+  const payload = {
+    ...product,
+    id,
+    createdAt: product.createdAt || now,
+    updatedAt: now,
+  };
+
+  await assertOwnedByCompanyOrThrow("ProductCatalogEntry", payload.id, user.companyId, "Bu ürün başka bir firmaya ait.");
+
+  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "ProductCatalogEntry" WHERE "id" = ? LIMIT 1`, payload.id);
+  if (existingRows[0]) {
+    await prisma.$executeRawUnsafe(
+      `
+        UPDATE "ProductCatalogEntry"
+        SET "data" = ?, "updatedAt" = ?
+        WHERE "id" = ?
+      `,
+      JSON.stringify(payload),
+      payload.updatedAt,
+      payload.id,
+    );
+  } else {
+    await prisma.$executeRawUnsafe(
+      `
+        INSERT INTO "ProductCatalogEntry" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      payload.id,
+      user.id,
+      JSON.stringify(payload),
+      payload.createdAt,
+      payload.updatedAt,
+    );
+  }
+
+  return payload;
+}
+
+export async function deleteProductForUser(user, productId) {
+  const row = await getOwnerScopedRow("ProductCatalogEntry", productId);
+  if (!row || row.companyId !== user.companyId) {
+    return;
+  }
+
+  await prisma.$executeRawUnsafe(`DELETE FROM "ProductCatalogEntry" WHERE "id" = ?`, productId);
+}

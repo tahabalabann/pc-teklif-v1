@@ -103,7 +103,7 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
                   <td>{row.category}</td>
                   <td>{row.product || "-"}</td>
                   <td>{row.description || "-"}</td>
-                  {shouldShowPrices && <td className="text-right font-semibold">{formatCurrency(row.salePrice)}</td>}
+                  {shouldShowPrices && <td className="text-right font-semibold">{formatCurrency(row.salePrice, quote.currency)}</td>}
                 </tr>
               ))
             )}
@@ -141,38 +141,45 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
           <div className="print-summary-card">
             <div className="print-summary-row">
               <span>Parça Toplamı</span>
-              <strong>{formatCurrency(partsTotal)}</strong>
+              <strong>{formatCurrency(partsTotal, quote.currency)}</strong>
             </div>
             {!onlyProducts && (
               <>
                 <div className="print-summary-row">
                   <span>İşçilik / Montaj</span>
-                  <strong>{formatCurrency(quote.labor)}</strong>
+                  <strong>{formatCurrency(quote.labor, quote.currency)}</strong>
                 </div>
                 <div className="print-summary-row">
                   <span>Kargo</span>
-                  <strong>{formatCurrency(quote.shipping)}</strong>
+                  <strong>{formatCurrency(quote.shipping, quote.currency)}</strong>
                 </div>
                 <div className="print-summary-row">
                   <span>İndirim</span>
-                  <strong>-{formatCurrency(quote.discount)}</strong>
+                  <strong>-{formatCurrency(quote.discount, quote.currency)}</strong>
                 </div>
               </>
             )}
             <div className="print-summary-total">
               <span>{onlyProducts ? "Parça Genel Toplamı" : "Genel Toplam"}</span>
-              <strong>{formatCurrency(grandTotal)}</strong>
+              <div className="text-right">
+                <strong>{formatCurrency(grandTotal, quote.currency)}</strong>
+                {quote.currency && quote.currency !== "TRY" && quote.exchangeRate && (
+                  <div className="text-xs text-ink-500 font-normal mt-1">
+                    TL Karşılığı: {formatCurrency(grandTotal * quote.exchangeRate, "TRY")}
+                  </div>
+                )}
+              </div>
             </div>
             {quote.cashPrice > 0 && (
               <div className="print-summary-row print-summary-secondary">
                 <span>Nakit Fiyat</span>
-                <strong>{formatCurrency(quote.cashPrice)}</strong>
+                <strong>{formatCurrency(quote.cashPrice, quote.currency)}</strong>
               </div>
             )}
             {quote.tradePrice > 0 && (
               <div className="print-summary-row print-summary-secondary">
                 <span>Takas Fiyatı</span>
-                <strong>{formatCurrency(quote.tradePrice)}</strong>
+                <strong>{formatCurrency(quote.tradePrice, quote.currency)}</strong>
               </div>
             )}
           </div>

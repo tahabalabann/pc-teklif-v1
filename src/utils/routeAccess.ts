@@ -1,20 +1,15 @@
 import type { AppUser } from "../types/quote";
+import type { AppRoute } from "../hooks/useHashRoute";
 
-export const roleRouteAccess: Record<
-  AppUser["role"],
-  Array<"dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings">
-> = {
-  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "accounting", "settings"],
+export const roleRouteAccess: Record<AppUser["role"], AppRoute[]> = {
+  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "products", "accounting", "settings", "platform"],
   accounting: ["companies", "accounting"],
-  operations: ["quotes", "quote-detail", "shipping", "companies"],
+  operations: ["quotes", "quote-detail", "shipping", "companies", "products"],
   shipping: ["shipping", "companies"],
-  sales: ["quotes", "quote-detail", "companies"],
-  staff: ["quotes", "quote-detail", "shipping", "companies"],
+  sales: ["quotes", "quote-detail", "companies", "products"],
+  staff: ["quotes", "quote-detail", "shipping", "companies", "products"],
 };
 
-export function canAccessRoute(
-  user: AppUser,
-  route: "dashboard" | "quotes" | "quote-detail" | "shipping" | "companies" | "accounting" | "settings",
-) {
+export function canAccessRoute(user: AppUser, route: AppRoute) {
   return roleRouteAccess[user.role].includes(route);
 }

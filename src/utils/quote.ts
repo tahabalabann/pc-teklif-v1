@@ -118,6 +118,8 @@ export const createEmptyQuote = (): Quote => {
     tradePrice: 0,
     salesPrice: 0,
     costPrice: 0,
+    currency: "TRY",
+    exchangeRate: 1,
     geliverSender: defaultSender(),
     geliverRecipient: defaultRecipient(),
     geliverParcel: defaultParcel(),
@@ -209,6 +211,8 @@ export const sanitizeQuote = (input: Quote): Quote => {
     tradePrice: sanitizeNumber(quote.tradePrice),
     salesPrice: sanitizeNumber(quote.salesPrice),
     costPrice: sanitizeNumber(quote.costPrice),
+    currency: quote.currency || "TRY",
+    exchangeRate: sanitizeNumber(quote.exchangeRate) || 1,
     geliverSender: {
       ...defaultSender(),
       ...(quote.geliverSender || {}),

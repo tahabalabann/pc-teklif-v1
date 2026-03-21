@@ -6,6 +6,7 @@ export type AppRoute =
   | "quote-detail"
   | "shipping"
   | "companies"
+  | "products"
   | "accounting"
   | "settings"
   | "platform";
@@ -16,6 +17,7 @@ const validRoutes: AppRoute[] = [
   "quote-detail",
   "shipping",
   "companies",
+  "products",
   "accounting",
   "settings",
   "platform",

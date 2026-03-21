@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import type { AppUser, AuditLogEntry, CompanyReportSummary, DashboardSummary, WalletLedgerEntry } from "../../types/quote";
 import { reportsApi } from "../../utils/api";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+
+const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#f59e0b', '#06b6d4'];
 
 const emptySummary: DashboardSummary = {
   todayQuotes: 0,
@@ -130,6 +133,54 @@ export function DashboardPage() {
         </div>
       </Card>
 
+      {!loading && shippingAverages.length > 0 && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="p-6 h-[400px] flex flex-col">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Firmalara Göre İş Hacmi</h3>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={shippingAverages} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} vertical={false} />
+                  <XAxis dataKey="companyName" tick={{fontSize: 12}} tickMargin={10} axisLine={false} tickLine={false} />
+                  <YAxis tick={{fontSize: 12}} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{fill: 'rgba(0,0,0,0.04)'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} iconType="circle" />
+                  <Bar dataKey="totalQuotes" name="Verilen Teklif" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                  <Bar dataKey="totalShipments" name="Üretilen Kargo" fill="#f97316" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+          
+          <Card className="p-6 h-[400px] flex flex-col">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4">Kârlılık Dağılımı</h3>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={shippingAverages.filter(r => r.totalProfit > 0)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={110}
+                    innerRadius={60}
+                    fill="#8884d8"
+                    dataKey="totalProfit"
+                    nameKey="companyName"
+                    label={({ name, percent }: any) => percent && percent > 0.05 ? `${name} ${(percent * 100).toFixed(0)}%` : ""}
+                  >
+                    {shippingAverages.filter(r => r.totalProfit > 0).map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value: any) => formatCurrency(Number(value || 0))} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
         <Card className="p-6">
           <div className="flex items-start justify-between gap-4">
@@ -143,8 +194,15 @@ export function DashboardPage() {
           </div>
 
           {loading ? (
-            <div className="mt-5 rounded-2xl border border-dashed border-ink-200 px-4 py-6 text-sm text-ink-500">
-              Raporlar yükleniyor...
+            <div className="mt-5 space-y-3">
+              {[...Array(5)].map((_, index) => (
+                <div key={index} className="flex items-center gap-4 py-2 border-b border-ink-100 last:border-0">
+                  <div className="h-10 w-1/3 rounded-xl bg-ink-200/40 animate-pulse"></div>
+                  <div className="h-10 w-1/6 rounded-xl bg-ink-200/30 animate-pulse"></div>
+                  <div className="h-10 w-1/6 rounded-xl bg-ink-200/30 animate-pulse"></div>
+                  <div className="h-10 flex-1 rounded-xl bg-ink-200/20 animate-pulse"></div>
+                </div>
+              ))}
             </div>
           ) : (
             <div className="mt-5 overflow-x-auto">

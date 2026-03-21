@@ -43,7 +43,12 @@ export function PricingSummary({ quote, onNumberChange, compact = false }: Prici
         </div>
         <div className="rounded-2xl bg-brand-50 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.14em] text-brand-600">Genel Toplam</p>
-          <p className="mt-1 text-2xl font-bold text-ink-900">{formatCurrency(grandTotal)}</p>
+          <p className="mt-1 text-2xl font-bold text-ink-900">{formatCurrency(grandTotal, quote.currency)}</p>
+          {quote.currency && quote.currency !== "TRY" && quote.exchangeRate && (
+            <p className="mt-1 text-xs text-brand-700 font-medium whitespace-nowrap">
+              TL Karşılığı: {formatCurrency(grandTotal * quote.exchangeRate, "TRY")}
+            </p>
+          )}
         </div>
       </div>
 
@@ -65,12 +70,12 @@ export function PricingSummary({ quote, onNumberChange, compact = false }: Prici
       )}
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Metric label={"Par\u00e7a Sat\u0131\u015f Toplam\u0131"} value={formatCurrency(partsSaleTotal)} />
-        <Metric label={"Par\u00e7a Al\u0131\u015f Toplam\u0131"} value={formatCurrency(partsCostTotal)} />
-        <Metric label={"Toplam Maliyet"} value={formatCurrency(totalCost)} />
+        <Metric label={"Par\u00e7a Sat\u0131\u015f Toplam\u0131"} value={formatCurrency(partsSaleTotal, quote.currency)} />
+        <Metric label={"Par\u00e7a Al\u0131\u015f Toplam\u0131"} value={formatCurrency(partsCostTotal, quote.currency)} />
+        <Metric label={"Toplam Maliyet"} value={formatCurrency(totalCost, quote.currency)} />
         <Metric
           label={"Tahmini K\u00e2r"}
-          value={formatCurrency(estimatedProfit)}
+          value={formatCurrency(estimatedProfit, quote.currency)}
           accent={estimatedProfit < 0 ? "negative" : "positive"}
         />
       </div>

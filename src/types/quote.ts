@@ -1,6 +1,8 @@
 export type QuoteStatus =
   | "Yeni Teklif"
   | "Onay Bekliyor"
+  | "Onaylandı"
+  | "Reddedildi"
   | "Ödeme Alındı"
   | "Hazırlanıyor"
   | "Kargolandı"
@@ -106,6 +108,8 @@ export interface Quote {
   tradePrice: number;
   salesPrice: number;
   costPrice: number;
+  currency?: "TRY" | "USD" | "EUR" | "GBP";
+  exchangeRate?: number;
   geliverSender: GeliverRecipientAddress;
   geliverRecipient: GeliverRecipientAddress;
   geliverParcel: GeliverParcel;

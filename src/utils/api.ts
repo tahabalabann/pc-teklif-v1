@@ -169,6 +169,31 @@ export const senderAddressBookApi = {
   },
 };
 
+export interface CatalogProduct {
+  id: string;
+  category: string;
+  name: string;
+  description: string;
+  purchasePrice: number;
+  salePrice: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const productsApi = {
+  list: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/products")).products,
+  save: async (product: Partial<CatalogProduct>) =>
+    (
+      await apiRequest<{ product: CatalogProduct }>("/api/products", {
+        method: "POST",
+        body: JSON.stringify({ product }),
+      })
+    ).product,
+  delete: async (productId: string) => {
+    await apiRequest<{ ok: true }>(`/api/products/${productId}`, { method: "DELETE" });
+  },
+};
+
 export const companiesApi = {
   list: async () => (await apiRequest<{ companies: CompanyRecord[] }>("/api/companies")).companies,
   save: async (company: CompanyRecord) =>
@@ -283,4 +308,8 @@ export const reportsApi = {
         body: JSON.stringify(payload),
       })
     ).balance,
+};
+
+export const ratesApi = {
+  getRates: async () => (await apiRequest<{ rates: { TRY: number; USD: number; EUR: number; GBP: number } }>("/api/rates")).rates,
 };

@@ -8,6 +8,8 @@ import { SellerInfoCard } from "../quote/SellerInfoCard";
 import { TemplateSelector } from "../quote/TemplateSelector";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
+import { ratesApi } from "../../utils/api";
+import { toast } from "react-hot-toast";
 
 interface QuoteWorkspacePageProps {
   activeQuote: Quote;
@@ -48,7 +50,7 @@ export function QuoteWorkspacePage({
 
   return (
     <div className="space-y-6">
-      <Card className="sticky top-4 z-10 p-5 ring-1 ring-white/20 print:hidden">
+      <Card className="sticky top-[80px] z-10 p-5 ring-1 ring-white/20 print:hidden shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <p className="panel-label">Teklifler / Detay</p>
@@ -95,6 +97,37 @@ export function QuoteWorkspacePage({
             />
             <span>PDF'de parca fiyatlarini tek tek goster</span>
           </label>
+
+          <div className="flex gap-2 items-center">
+            <select
+              className="field min-w-[100px]"
+              value={activeQuote.currency || "TRY"}
+              onChange={async (event) => {
+                const currency = event.target.value as "TRY" | "USD" | "EUR" | "GBP";
+                if (currency === "TRY") {
+                  onPatchQuote({ currency, exchangeRate: 1 });
+                  return;
+                }
+                const toastId = toast.loading("Güncel kur çekiliyor...");
+                try {
+                  const rates = await ratesApi.getRates();
+                  onPatchQuote({ currency, exchangeRate: rates[currency] || 1 });
+                  toast.success("Kur güncellendi", { id: toastId });
+                } catch (error) {
+                  toast.error("Kur alınamadı", { id: toastId });
+                  onPatchQuote({ currency, exchangeRate: 1 });
+                }
+              }}
+            >
+              <option value="TRY">TL (₺)</option>
+              <option value="USD">USD ($)</option>
+              <option value="EUR">EUR (€)</option>
+              <option value="GBP">GBP (£)</option>
+            </select>
+            {activeQuote.currency !== "TRY" && (
+              <span className="text-xs text-ink-500 font-medium">Kur: {activeQuote.exchangeRate}</span>
+            )}
+          </div>
 
           <select
             className="field min-w-[220px]"

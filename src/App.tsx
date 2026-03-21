@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoginScreen } from "./components/auth/LoginScreen";
-import { AppSectionNav } from "./components/layout/AppSectionNav";
 import { Header } from "./components/layout/Header";
 import { AccountingPage } from "./components/pages/AccountingPage";
 import { CompaniesPage } from "./components/pages/CompaniesPage";
@@ -12,8 +11,12 @@ import { SettingsPage } from "./components/pages/SettingsPage";
 import { ShippingPage } from "./components/pages/ShippingPage";
 import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { defaultTemplates } from "./data/templates";
-import { useHashRoute } from "./hooks/useHashRoute";
 import { useLocalStorage } from "./hooks/useLocalStorage";
+import type { AppRoute } from "./hooks/useHashRoute";
+import { useLocation, useNavigate, Routes, Route, Navigate } from "react-router-dom";
+import { Toaster, toast } from "react-hot-toast";
+import { CustomerPortalPage } from "./components/pages/CustomerPortalPage";
+import { ProductCatalogPage } from "./components/pages/ProductCatalogPage";
 import { useNotificationsState } from "./hooks/useNotificationsState";
 import type {
   AppUser,
@@ -30,7 +33,10 @@ import { canAccessRoute } from "./utils/routeAccess";
 import { applyCompanyDefaults, createDefaultQuote, draftKey, loadDraftForUser } from "./utils/quoteWorkspace";
 
 function App() {
-  const { route, setRoute } = useHashRoute("dashboard");
+  const location = useLocation();
+  const navigate = useNavigate();
+  const route = (location.pathname.replace(/^\/+/g, "") || "quotes") as AppRoute;
+  const setRoute = (r: AppRoute | string) => navigate(`/${r}`);
   const [theme, setTheme] = useLocalStorage<"light" | "dark">("pc-teklif:theme", "light");
   const [showItemPricesInPrint, setShowItemPricesInPrint] = useLocalStorage<boolean>(
     "pc-teklif:showItemPricesInPrint",
@@ -142,7 +148,9 @@ function App() {
         setCurrentQuote((prev) => (prev.id === saved.id ? saved : prev));
       } catch (caughtError) {
         setAutoSaveState("error");
-        setAutoSaveError(caughtError instanceof Error ? caughtError.message : "Teklif kaydedilemedi.");
+        const msg = caughtError instanceof Error ? caughtError.message : "Teklif kaydedilemedi.";
+        setAutoSaveError(msg);
+        toast.error("Otomatik kayit basarisiz: " + msg);
       } finally {
         setAutoSaving(false);
       }
@@ -190,16 +198,21 @@ function App() {
   };
 
   const handleSaveQuote = async () => {
-    const saved = sanitizeQuote(await quotesApi.save(touchQuote(activeQuote)));
-    lastSavedSnapshotRef.current = JSON.stringify(saved);
-    setLastAutoSavedAt(saved.updatedAt);
-    setAutoSaveState("saved");
-    setAutoSaveError("");
-    setSavedQuotes((prev) => {
-      const exists = prev.some((item) => item.id === saved.id);
-      return exists ? prev.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...prev];
-    });
-    setCurrentQuote(saved);
+    try {
+      const saved = sanitizeQuote(await quotesApi.save(touchQuote(activeQuote)));
+      lastSavedSnapshotRef.current = JSON.stringify(saved);
+      setLastAutoSavedAt(saved.updatedAt);
+      setAutoSaveState("saved");
+      setAutoSaveError("");
+      setSavedQuotes((prev) => {
+        const exists = prev.some((item) => item.id === saved.id);
+        return exists ? prev.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...prev];
+      });
+      setCurrentQuote(saved);
+      toast.success("Teklif başariyla kaydedildi");
+    } catch (caughtError) {
+      toast.error(caughtError instanceof Error ? caughtError.message : "Kaydedilemedi");
+    }
   };
 
   const handleNewQuote = () => {
@@ -211,6 +224,7 @@ function App() {
     resetSaveIndicators();
     setCurrentQuote(createDefaultQuote(session.user, companySettings));
     setRoute("quote-detail");
+    toast.success("Yeni teklif taslaği oluşturuldu");
   };
 
   const handleResetQuote = () => {
@@ -244,18 +258,20 @@ function App() {
   };
 
   const handleDeleteQuote = async (id: string) => {
-    await quotesApi.delete(id);
-    setSavedQuotes((prev) => prev.filter((quote) => quote.id !== id));
+    try {
+      await quotesApi.delete(id);
+      setSavedQuotes((prev) => prev.filter((quote) => quote.id !== id));
+      toast.success("Teklif silindi");
 
-    if (activeQuote.id === id) {
-      if (!session) {
-        return;
+      if (activeQuote.id === id) {
+        if (!session) return;
+        skipAutoSaveRef.current = true;
+        resetSaveIndicators();
+        setCurrentQuote(createDefaultQuote(session.user, companySettings));
+        setRoute("quotes");
       }
-
-      skipAutoSaveRef.current = true;
-      resetSaveIndicators();
-      setCurrentQuote(createDefaultQuote(session.user, companySettings));
-      setRoute("quotes");
+    } catch (e) {
+      toast.error("Teklif silinemedi");
     }
   };
 
@@ -269,12 +285,14 @@ function App() {
     resetSaveIndicators();
     setCurrentQuote(cloneQuote(selected));
     setRoute("quotes");
+    toast.success("Teklif kopyalandi");
   };
 
   const handleDuplicateActive = () => {
     skipAutoSaveRef.current = true;
     resetSaveIndicators();
     setCurrentQuote(cloneQuote(activeQuote));
+    toast.success("Teklif kopyalandi");
   };
 
   const handleApplyTemplate = (templateId: string) => {
@@ -304,6 +322,7 @@ function App() {
         sellerInfo: freshQuote.sellerInfo,
       }),
     );
+    toast.success("Sablon uygulandi");
   };
 
   const handleLogin = async (email: string, password: string) => {
@@ -397,16 +416,35 @@ function App() {
 
   if (isBooting) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-200 border-t-orange-500" />
-          <p className="animate-pulse text-sm font-medium text-slate-500">Sistem hazırlanıyor...</p>
+      <div className="min-h-screen bg-slate-50">
+        <header className="h-16 w-full border-b border-ink-200/50 bg-white/80 shrink-0"></header>
+        <div className="mx-auto max-w-[1700px] p-6 space-y-6">
+          <div className="h-32 w-full rounded-2xl bg-ink-200/30 animate-pulse"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="h-28 w-full rounded-xl bg-ink-200/20 animate-pulse"></div>
+            <div className="h-28 w-full rounded-xl bg-ink-200/20 animate-pulse"></div>
+            <div className="h-28 w-full rounded-xl bg-ink-200/20 animate-pulse"></div>
+            <div className="h-28 w-full rounded-xl bg-ink-200/20 animate-pulse"></div>
+          </div>
         </div>
       </div>
     );
   }
 
+  const isPortal = location.pathname.startsWith("/portal");
+
   if (!session) {
+    if (isPortal) {
+      return (
+        <div className={`min-h-screen transition-colors duration-500 ${theme === "dark" ? "theme-dark bg-[#020617] bg-gradient-mesh" : "bg-slate-50 bg-gradient-mesh"}`}>
+          <Toaster position="bottom-right" toastOptions={{ duration: 4000, className: "backdrop-blur-xl bg-white/90 shadow-elevated border border-ink-100 dark:bg-slate-900/90 dark:border-slate-800 dark:text-white" }} />
+          <Routes>
+            <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      );
+    }
     return <LoginScreen onLogin={handleLogin} />;
   }
 
@@ -416,111 +454,139 @@ function App() {
         theme === "dark" ? "theme-dark bg-[#020617] bg-gradient-mesh" : "bg-slate-50 bg-gradient-mesh"
       }`}
     >
-      <div className="screen-only mx-auto max-w-[1700px] animate-fade-in px-4 py-6 sm:px-6 lg:px-8">
-        <Header
-          currentUser={session.user}
-          notifications={notifications}
-          onLogout={handleLogout}
-          onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
-          onPrint={() => window.print()}
-          theme={theme}
-          onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
-          unreadNotificationCount={notifications.filter((item) => !item.readAt).length}
-        />
-
-        <div className="mt-6 space-y-6">
-          <AppSectionNav
+      <Toaster 
+         position="bottom-right" 
+         toastOptions={{ duration: 4000, className: "backdrop-blur-xl bg-white/90 shadow-elevated border border-ink-100 dark:bg-slate-900/90 dark:border-slate-800 dark:text-white" }} 
+      />
+      <div className="screen-only">
+        {!isPortal && (
+          <Header
             currentRoute={route}
-            currentUserRole={session.user.role}
-            isPlatformAdmin={session.user.isPlatformAdmin}
             onRouteChange={setRoute}
+            currentUser={session.user}
+            notifications={notifications}
+            onLogout={handleLogout}
+            onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
+            onPrint={() => window.print()}
+            theme={theme}
+            onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            unreadNotificationCount={notifications.filter((item) => !item.readAt).length}
           />
+        )}
 
-          {route === "dashboard" && canAccessRoute(session.user, "dashboard") && <DashboardPage />}
+        <main className={`mx-auto animate-fade-in ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
+          <div className="space-y-6">
+            <Routes>
+              <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
+              <Route path="/" element={<Navigate to="/quotes" replace />} />
+              
+              <Route path="/products" element={<ProductCatalogPage />} />
 
-          {route === "quotes" && canAccessRoute(session.user, "quotes") && (
-            <QuoteListPage
-              activeQuote={activeQuote}
-              onDeleteQuote={(id) => void handleDeleteQuote(id)}
-              onDuplicateQuote={handleDuplicateQuote}
-              onNewQuote={handleNewQuote}
-              onOpenDetail={() => setRoute("quote-detail")}
-              onOpenQuote={handleOpenQuote}
-              savedQuotes={normalizedSavedQuotes}
-            />
-          )}
+              <Route path="/dashboard" element={
+                canAccessRoute(session.user, "dashboard") ? <DashboardPage /> : <Navigate to="/quotes" replace />
+              } />
 
-          {route === "quote-detail" && canAccessRoute(session.user, "quote-detail") && (
-            <QuoteWorkspacePage
-              activeQuote={activeQuote}
-              onApplyTemplate={handleApplyTemplate}
-              onBackToList={() => setRoute("quotes")}
-              onDuplicateActive={handleDuplicateActive}
-              onNewQuote={handleNewQuote}
-              onPatchQuote={patchQuote}
-              onPrintTemplateChange={setPrintTemplate}
-              onResetQuote={handleResetQuote}
-              onSaveQuote={() => void handleSaveQuote()}
-              onShowItemPricesChange={setShowItemPricesInPrint}
-              printTemplate={printTemplate}
-              saveStatusText={saveStatusText}
-              saveStatusTone={autoSaveState === "error" ? "error" : "normal"}
-              showItemPricesInPrint={showItemPricesInPrint}
-              templates={defaultTemplates}
-            />
-          )}
+              <Route path="/quotes" element={
+                canAccessRoute(session.user, "quotes") ? (
+                  <QuoteListPage
+                    activeQuote={activeQuote}
+                    onDeleteQuote={(id) => void handleDeleteQuote(id)}
+                    onDuplicateQuote={handleDuplicateQuote}
+                    onNewQuote={handleNewQuote}
+                    onOpenDetail={() => setRoute("quote-detail")}
+                    onOpenQuote={handleOpenQuote}
+                    savedQuotes={normalizedSavedQuotes}
+                  />
+                ) : <Navigate to="/" replace />
+              } />
 
-          {route === "shipping" && canAccessRoute(session.user, "shipping") && (
-            <ShippingPage
-              activeQuote={activeQuote}
-              companySettings={companySettings}
-              currentUser={session.user}
-              onDeleteQuote={(id) => void handleDeleteQuote(id)}
-              onDuplicateQuote={handleDuplicateQuote}
-              onOpenQuote={handleOpenQuote}
-              onPatchQuote={patchQuote}
-              onCurrentUserBalanceChange={(balance) =>
-                setSession((prev) => (prev ? { ...prev, user: { ...prev.user, balance } } : prev))
-              }
-              savedQuotes={normalizedSavedQuotes}
-            />
-          )}
+              <Route path="/quote-detail" element={
+                canAccessRoute(session.user, "quote-detail") ? (
+                  <QuoteWorkspacePage
+                    activeQuote={activeQuote}
+                    onApplyTemplate={handleApplyTemplate}
+                    onBackToList={() => setRoute("quotes")}
+                    onDuplicateActive={handleDuplicateActive}
+                    onNewQuote={handleNewQuote}
+                    onPatchQuote={patchQuote}
+                    onPrintTemplateChange={setPrintTemplate}
+                    onResetQuote={handleResetQuote}
+                    onSaveQuote={() => void handleSaveQuote()}
+                    onShowItemPricesChange={setShowItemPricesInPrint}
+                    printTemplate={printTemplate}
+                    saveStatusText={saveStatusText}
+                    saveStatusTone={autoSaveState === "error" ? "error" : "normal"}
+                    showItemPricesInPrint={showItemPricesInPrint}
+                    templates={defaultTemplates}
+                  />
+                ) : <Navigate to="/quotes" replace />
+              } />
 
-          {route === "companies" && canAccessRoute(session.user, "companies") && (
-            <CompaniesPage
-              quote={activeQuote}
-              quotes={normalizedSavedQuotes}
-              onApplyCompany={handleApplyCompany}
-              onOpenQuote={(id) => {
-                handleOpenQuote(id);
-                setRoute("quote-detail");
-              }}
-            />
-          )}
+              <Route path="/shipping" element={
+                canAccessRoute(session.user, "shipping") ? (
+                  <ShippingPage
+                    activeQuote={activeQuote}
+                    companySettings={companySettings}
+                    currentUser={session.user}
+                    onDeleteQuote={(id) => void handleDeleteQuote(id)}
+                    onDuplicateQuote={handleDuplicateQuote}
+                    onOpenQuote={handleOpenQuote}
+                    onPatchQuote={patchQuote}
+                    onCurrentUserBalanceChange={(balance) =>
+                      setSession((prev) => (prev ? { ...prev, user: { ...prev.user, balance } } : prev))
+                    }
+                    savedQuotes={normalizedSavedQuotes}
+                  />
+                ) : <Navigate to="/quotes" replace />
+              } />
 
-          {route === "accounting" && canAccessRoute(session.user, "accounting") && (
-            <AccountingPage
-              currentQuoteId={activeQuote.id}
-              onDeleteQuote={(id) => void handleDeleteQuote(id)}
-              onDuplicateQuote={handleDuplicateQuote}
-              onOpenQuote={handleOpenQuote}
-              quotes={normalizedSavedQuotes}
-            />
-          )}
+              <Route path="/companies" element={
+                canAccessRoute(session.user, "companies") ? (
+                  <CompaniesPage
+                    quote={activeQuote}
+                    quotes={normalizedSavedQuotes}
+                    onApplyCompany={handleApplyCompany}
+                    onOpenQuote={(id) => {
+                      handleOpenQuote(id);
+                      setRoute("quote-detail");
+                    }}
+                  />
+                ) : <Navigate to="/quotes" replace />
+              } />
 
-          {route === "settings" && canAccessRoute(session.user, "settings") && (
-            <SettingsPage
-              currentUser={session.user}
-              onCompanySaved={handleCompanySettingsSaved}
-              notifications={notifications}
-              onNotificationsChange={setNotifications}
-            />
-          )}
+              <Route path="/accounting" element={
+                canAccessRoute(session.user, "accounting") ? (
+                  <AccountingPage
+                    currentQuoteId={activeQuote.id}
+                    onDeleteQuote={(id) => void handleDeleteQuote(id)}
+                    onDuplicateQuote={handleDuplicateQuote}
+                    onOpenQuote={handleOpenQuote}
+                    quotes={normalizedSavedQuotes}
+                  />
+                ) : <Navigate to="/quotes" replace />
+              } />
 
-          {route === "platform" && session.user.isPlatformAdmin && (
-            <PlatformAdminPage currentUser={session.user} />
-          )}
-        </div>
+              <Route path="/settings" element={
+                canAccessRoute(session.user, "settings") ? (
+                  <SettingsPage
+                    currentUser={session.user}
+                    onCompanySaved={handleCompanySettingsSaved}
+                    notifications={notifications}
+                    onNotificationsChange={setNotifications}
+                  />
+                ) : <Navigate to="/quotes" replace />
+              } />
+
+              <Route path="/platform" element={
+                session.user.isPlatformAdmin ? (
+                  <PlatformAdminPage currentUser={session.user} />
+                ) : <Navigate to="/quotes" replace />
+              } />
+              
+              <Route path="*" element={<Navigate to="/quotes" replace />} />
+            </Routes>
+          </div>
+        </main>
       </div>
 
       <div className="print-only">

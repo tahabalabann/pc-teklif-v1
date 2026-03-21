@@ -1,0 +1,43 @@
+﻿node : file:///C:/Users
+/tahay/Desktop/pc-tekli
+f-v1/server/index.js:59
+At line:1 char:1
++ node server/index.js 
+> server_err.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (file:///C:/Us   
+ er...ver/index.js:    
+59:String) [], Rem    o
+teException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  deleteProductForUser,
+  ^^^^^^^^^^^^^^^^^^^^
+SyntaxError: The reques
+ted module './store.js'
+ does not provide an ex
+port named 'deleteProdu
+ctForUser'
+    at #asyncInstantiat
+e (node:internal/module
+s/esm/module_job:319:21
+)
+    at async ModuleJob.
+run (node:internal/modu
+les/esm/module_job:422:
+5)
+    at async onImport.t
+racePromise.__proto__ (
+node:internal/modules/e
+sm/loader:661:26)
+    at async asyncRunEn
+tryPointWithESMLoader (
+node:internal/modules/r
+un_main:101:5)
+
+Node.js v24.14.0
