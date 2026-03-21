@@ -1,10 +1,6 @@
-import { randomUUID, scryptSync } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { prisma } from "./db.js";
-
-function hashPassword(password, salt = randomUUID()) {
-  const hash = scryptSync(password, salt, 64).toString("hex");
-  return { salt, hash };
-}
+import { hashPassword } from "./store.js";
 
 async function ensureColumn(tableName, columnName, columnType) {
   const columns = await prisma.$queryRawUnsafe(`PRAGMA table_info("${tableName}")`);

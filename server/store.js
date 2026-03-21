@@ -9,7 +9,7 @@ const ownerScopedTables = new Set([
   "ShipmentRecord",
 ]);
 
-function hashPassword(password, salt = randomUUID()) {
+export function hashPassword(password, salt = randomUUID()) {
   const hash = scryptSync(password, salt, 64).toString("hex");
   return { salt, hash };
 }

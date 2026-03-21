@@ -4,6 +4,7 @@ import rateLimit from "express-rate-limit";
 import { disconnectStore } from "./db.js";
 import { ensureSeedAdmin } from "./bootstrapStore.js";
 import { turkeyCities } from "./turkeyCities.js";
+import { normalizePhone, normalizeTurkishLocationName, safeJsonParse, toNumber, roundCurrency } from "./helpers.js";
 import {
   authenticateUser,
   createOrganizationWithAdmin,
@@ -500,7 +501,7 @@ app.get("/api/shipment-records", requireAuth, async (req, res) => {
 
 app.post("/api/shipment-records", requireAuth, async (req, res) => {
   const shipment = req.body?.shipment;
-  if (!shipment?.shipment) {
+  if (!shipment?.shipment && !shipment?.trackingNumber) {
     return res.status(400).json({ error: "Kargo kaydı bulunamadı." });
   }
 
@@ -623,9 +624,7 @@ app.post("/api/geliver/create-transaction", requireAuth, async (req, res) => {
 
     if (!req.user.isPlatformAdmin && chargedEstimatedPrice > Number(req.user.balance || 0)) {
       return res.status(400).json({
-        error: req.user.isPlatformAdmin
-          ? `Bakiyeniz yetersiz. Gerekli yaklaşık tutar: ${chargedEstimatedPrice.toFixed(2)} TL`
-          : "Bakiyeniz yetersiz.",
+        error: `Bakiyeniz yetersiz. Gerekli yaklaşık tutar: ${chargedEstimatedPrice.toFixed(2)} TL`,
       });
     }
 
@@ -714,9 +713,7 @@ function calculateChargedShippingAmount(baseAmount, user) {
   return roundCurrency(numericBaseAmount * (1 + nonPlatformShippingMarkupRate));
 }
 
-function roundCurrency(value) {
-  return Math.round(Number(value || 0) * 100) / 100;
-}
+
 
 async function createSenderAddress(address) {
   return geliverRequest("/addresses", {
@@ -889,7 +886,7 @@ async function geliverRequest(path, init) {
       Authorization: `Bearer ${process.env.GELIVER_API_TOKEN}`,
       Accept: "application/json",
       "Content-Type": "application/json",
-      ...(init.headers || {}),
+      ...(init?.headers || {}),
     },
   });
 
@@ -1082,69 +1079,4 @@ function extractShipmentPrice(raw, transaction, shipment, acceptedOffer) {
   return 0;
 }
 
-function toNumber(value) {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
-  }
 
-  if (typeof value === "string") {
-    const normalized = value.replace(/[^\d,.-]/g, "").replace(",", ".");
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-
-  return 0;
-}
-
-function safeJsonParse(value) {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return { message: value };
-  }
-}
-
-function normalizePhone(phone) {
-  const digits = String(phone || "").replace(/\D/g, "");
-  if (digits.length === 10) {
-    return `+90${digits}`;
-  }
-  if (digits.length === 11 && digits.startsWith("0")) {
-    return `+9${digits}`;
-  }
-  if (digits.length === 12 && digits.startsWith("90")) {
-    return `+${digits}`;
-  }
-  return digits ? `+${digits}` : "";
-}
-
-function normalizeTurkishLocationName(value) {
-  const source = String(value || "").trim();
-  if (!source) {
-    return "";
-  }
-
-  const replacements = [
-    [/Istanbul/gi, "İstanbul"],
-    [/Izmir/gi, "İzmir"],
-    [/Cekmekoy/gi, "Çekmeköy"],
-    [/Gungoren/gi, "Güngören"],
-    [/Besiktas/gi, "Beşiktaş"],
-    [/Sisli/gi, "Şişli"],
-    [/Kadikoy/gi, "Kadıköy"],
-    [/Uskudar/gi, "Üsküdar"],
-  ];
-
-  let normalized = source;
-  for (const [pattern, replacement] of replacements) {
-    normalized = normalized.replace(pattern, replacement);
-  }
-
-  if (normalized === normalized.toUpperCase()) {
-    normalized = normalized
-      .toLocaleLowerCase("tr-TR")
-      .replace(/\b\w/g, (letter) => letter.toLocaleUpperCase("tr-TR"));
-  }
-
-  return normalized;
-}
