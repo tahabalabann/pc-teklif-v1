@@ -149,14 +149,14 @@ export function DashboardPage() {
           ) : (
             <div className="mt-5 overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-ink-50 text-left text-xs uppercase tracking-[0.14em] text-ink-500">
+                <thead className="bg-gradient-to-r from-ink-50 to-white text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-500">
                   <tr>
-                    <th className="px-3 py-3">Firma</th>
-                    <th className="px-3 py-3 text-right">Teklif</th>
-                    <th className="px-3 py-3 text-right">Kargo</th>
-                    <th className="px-3 py-3 text-right">Yükleme</th>
-                    <th className="px-3 py-3 text-right">Kâr</th>
-                    <th className="px-3 py-3 text-right">Ort. Maliyet</th>
+                    <th className="px-4 py-3.5">Firma</th>
+                    <th className="px-4 py-3.5 text-right">Teklif</th>
+                    <th className="px-4 py-3.5 text-right">Kargo</th>
+                    <th className="px-4 py-3.5 text-right">Yükleme</th>
+                    <th className="px-4 py-3.5 text-right">Kâr</th>
+                    <th className="px-4 py-3.5 text-right">Ort. Maliyet</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -354,12 +354,27 @@ function MetricCard({
 }) {
   return (
     <div
-      className={`rounded-2xl border px-5 py-4 ${
-        tone === "warning" ? "border-amber-200 bg-amber-50/70" : "border-ink-200 bg-white/90"
+      className={`group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated ${
+        tone === "warning"
+          ? "border-orange-200/50 bg-gradient-to-br from-orange-50 to-white hover:border-orange-300"
+          : "border-ink-200/50 glass hover:border-brand-200"
       }`}
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-ink-500">{label}</p>
-      <p className="mt-3 text-3xl font-semibold text-ink-900">{value}</p>
+      <div
+        className={`absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100 ${
+          tone === "warning"
+            ? "bg-gradient-to-br from-orange-100/40 to-transparent"
+            : "bg-gradient-to-br from-brand-50/40 to-transparent"
+        }`}
+      />
+      <div className="relative">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">
+          {label}
+        </p>
+        <p className="mt-3 text-3xl font-bold tracking-tight text-ink-900 drop-shadow-sm">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }

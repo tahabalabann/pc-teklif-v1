@@ -397,8 +397,11 @@ function App() {
 
   if (isBooting) {
     return (
-      <div className="mx-auto flex min-h-screen max-w-xl items-center justify-center text-sm text-ink-600">
-        Oturum kontrol ediliyor...
+      <div className="flex min-h-screen items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-orange-200 border-t-orange-500" />
+          <p className="animate-pulse text-sm font-medium text-slate-500">Sistem hazırlanıyor...</p>
+        </div>
       </div>
     );
   }
@@ -409,11 +412,11 @@ function App() {
 
   return (
     <div
-      className={`min-h-screen ${
-        theme === "dark" ? "theme-dark bg-[#0f172a]" : "bg-[#f3f4f6]"
+      className={`min-h-screen transition-colors duration-500 ${
+        theme === "dark" ? "theme-dark bg-[#020617] bg-gradient-mesh" : "bg-slate-50 bg-gradient-mesh"
       }`}
     >
-      <div className="screen-only mx-auto max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8">
+      <div className="screen-only mx-auto max-w-[1700px] animate-fade-in px-4 py-6 sm:px-6 lg:px-8">
         <Header
           currentUser={session.user}
           notifications={notifications}

@@ -79,9 +79,9 @@ export function QuoteListPage({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border border-ink-200 bg-ink-50 p-4">
-      <p className="text-xs uppercase tracking-[0.16em] text-ink-500">{label}</p>
-      <p className="mt-2 text-base font-semibold text-ink-900">{value}</p>
+    <div className="animate-fade-in rounded-xl border border-ink-200/50 p-4 transition-colors hover:border-brand-200 glass">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-ink-500">{label}</p>
+      <p className="mt-2 text-base font-bold text-ink-900 drop-shadow-sm">{value}</p>
     </div>
   );
 }

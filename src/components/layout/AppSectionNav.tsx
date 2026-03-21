@@ -68,7 +68,7 @@ export function AppSectionNav({
 }: AppSectionNavProps) {
   return (
     <nav className="print:hidden">
-      <div className="flex flex-wrap gap-2 border-b border-ink-200 pb-3">
+      <div className="flex flex-wrap gap-2">
         {routes
           .filter((route) => {
             if (route.platformOnly) {
@@ -83,14 +83,28 @@ export function AppSectionNav({
             return (
               <button
                 key={route.id}
-                className={`rounded-lg border px-4 py-3 text-left transition ${
-                  active ? "border-red-200 bg-red-50 text-red-800" : "border-ink-200 bg-white hover:border-red-200 hover:bg-red-50"
+                className={`group rounded-xl px-4 py-3 text-left transition-all duration-200 ${
+                  active
+                    ? "bg-gradient-to-r from-red-600/10 via-orange-500/10 to-orange-400/5 ring-1 ring-inset ring-orange-300/30 shadow-sm"
+                    : "bg-white/50 ring-1 ring-inset ring-ink-200/40 hover:bg-white/80 hover:ring-ink-300/50 hover:shadow-sm"
                 }`}
                 onClick={() => onRouteChange(route.id)}
                 type="button"
               >
-                <p className="text-sm font-semibold text-ink-900">{route.label}</p>
-                <p className="mt-1 text-xs leading-5 text-ink-600">{route.description}</p>
+                <p
+                  className={`text-sm font-semibold transition-colors ${
+                    active ? "text-orange-700" : "text-ink-800 group-hover:text-ink-900"
+                  }`}
+                >
+                  {route.label}
+                </p>
+                <p
+                  className={`mt-0.5 text-xs leading-5 transition-colors ${
+                    active ? "text-orange-600/70" : "text-ink-500"
+                  }`}
+                >
+                  {route.description}
+                </p>
               </button>
             );
           })}

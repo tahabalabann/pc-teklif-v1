@@ -48,7 +48,7 @@ export function QuoteWorkspacePage({
 
   return (
     <div className="space-y-6">
-      <Card className="sticky top-4 z-10 p-5 print:hidden">
+      <Card className="sticky top-4 z-10 p-5 ring-1 ring-white/20 print:hidden">
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <p className="panel-label">Teklifler / Detay</p>
@@ -61,10 +61,12 @@ export function QuoteWorkspacePage({
             Teklif Listesine Don
           </Button>
 
-          <div className="inline-flex rounded-lg bg-ink-50 p-1 ring-1 ring-inset ring-ink-200 dark-chip">
+          <div className="inline-flex rounded-xl bg-ink-100/50 p-1 ring-1 ring-inset ring-ink-200/50 backdrop-blur-sm">
             <button
-              className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-                mode === "admin" ? "bg-ink-900 text-white" : "text-ink-600"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                mode === "admin"
+                  ? "bg-white text-brand-600 shadow-sm ring-1 ring-ink-200"
+                  : "text-ink-600 hover:text-ink-900 hover:bg-white/50"
               }`}
               onClick={() => setMode("admin")}
               type="button"
@@ -72,8 +74,10 @@ export function QuoteWorkspacePage({
               Yonetim
             </button>
             <button
-              className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
-                mode === "customer" ? "bg-ink-900 text-white" : "text-ink-600"
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition-all duration-300 ${
+                mode === "customer"
+                  ? "bg-white text-brand-600 shadow-sm ring-1 ring-ink-200"
+                  : "text-ink-600 hover:text-ink-900 hover:bg-white/50"
               }`}
               onClick={() => setMode("customer")}
               type="button"
