@@ -1,4 +1,5 @@
 import { Router } from "express";
+import rateLimit from "express-rate-limit";
 import {
   listQuotesForUser,
   saveQuoteForUser,
@@ -11,6 +12,14 @@ import {
 } from "../store.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { eventBus } from "../utils/EventBus.js";
+
+const publicQuoteRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Çok fazla istek. Lütfen daha sonra tekrar deneyin." },
+});
 
 export const quotesRouter = Router();
 
@@ -69,6 +78,7 @@ quotesRouter.delete("/products/:id", requireAuth, async (req, res) => {
 
 // Public endpoints mapped to root in index.js for /api/public/quotes, but kept close
 export const publicQuotesRouter = Router();
+publicQuotesRouter.use(publicQuoteRateLimit);
 publicQuotesRouter.get("/:id", async (req, res) => {
   try {
     const quote = await getPublicQuoteById(req.params.id);

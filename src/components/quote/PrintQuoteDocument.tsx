@@ -1,6 +1,6 @@
 import type { PrintTemplateMode, Quote } from "../../types/quote";
 import { formatDisplayDate } from "../../utils/date";
-import { formatCurrency } from "../../utils/money";
+import { formatCurrency, formatSecondaryCurrency } from "../../utils/money";
 import { calculateGrandTotal, calculatePartsTotal } from "../../utils/quote";
 
 interface PrintQuoteDocumentProps {
@@ -17,6 +17,7 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
   const shippingFocused = printTemplate === "shipping";
   const proforma = printTemplate === "proforma";
   const shouldShowPrices = showItemPrices && printTemplate !== "products";
+  const sec = (val: number) => formatSecondaryCurrency(val, quote.currency, quote.exchangeRate);
 
   return (
     <section className="print-document">
@@ -106,12 +107,8 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
                   {shouldShowPrices && (
                     <td className="text-right">
                       <div className="font-semibold text-ink-900">{formatCurrency(row.salePrice, quote.currency)}</div>
-                      {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
-                        <div className="text-[10px] text-ink-500 font-normal mt-0.5">
-                          {quote.currency === "TRY" 
-                            ? formatCurrency(row.salePrice / quote.exchangeRate, "USD") 
-                            : formatCurrency(row.salePrice * quote.exchangeRate, "TRY")}
-                        </div>
+                      {sec(row.salePrice) && (
+                        <div className="text-[10px] text-ink-500 font-normal mt-0.5">{sec(row.salePrice)}</div>
                       )}
                     </td>
                   )}
@@ -174,11 +171,9 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
               <span>{onlyProducts ? "Parça Genel Toplamı" : "Genel Toplam"}</span>
               <div className="text-right">
                 <strong>{formatCurrency(grandTotal, quote.currency)}</strong>
-                {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
+                {sec(grandTotal) && (
                   <div className="text-xs text-ink-500 font-normal mt-1">
-                    {quote.currency === "TRY" 
-                      ? `USD Karşılığı: ${formatCurrency(grandTotal / quote.exchangeRate, "USD")}`
-                      : `TL Karşılığı: ${formatCurrency(grandTotal * quote.exchangeRate, "TRY")}`}
+                    {quote.currency === "TRY" ? "USD" : "TL"} Karşılığı: {sec(grandTotal)}
                   </div>
                 )}
               </div>

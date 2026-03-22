@@ -1,6 +1,6 @@
 import type { Quote } from "../../types/quote";
 import { calculateGrandTotal, calculatePartsTotal } from "../../utils/quote";
-import { formatCurrency } from "../../utils/money";
+import { formatCurrency, formatSecondaryCurrency } from "../../utils/money";
 import { formatDisplayDate } from "../../utils/date";
 import { Card } from "../ui/Card";
 
@@ -12,6 +12,7 @@ export function CustomerPreview({ quote }: CustomerPreviewProps) {
   const visibleRows = quote.rows.filter((row) => row.product || row.description || row.salePrice > 0);
   const partsTotal = calculatePartsTotal(quote.rows);
   const total = calculateGrandTotal(quote);
+  const sec = (val: number) => formatSecondaryCurrency(val, quote.currency, quote.exchangeRate);
 
   return (
     <main className="space-y-6">
@@ -74,12 +75,8 @@ export function CustomerPreview({ quote }: CustomerPreviewProps) {
                       <td className="px-4 py-3 text-ink-600">{row.description || "-"}</td>
                       <td className="px-4 py-3 text-right">
                         <div className="font-semibold text-ink-900">{formatCurrency(row.salePrice, quote.currency)}</div>
-                        {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
-                          <div className="text-[10px] text-ink-500 font-normal">
-                             {quote.currency === "TRY" 
-                               ? formatCurrency(row.salePrice / quote.exchangeRate, "USD") 
-                               : formatCurrency(row.salePrice * quote.exchangeRate, "TRY")}
-                          </div>
+                        {sec(row.salePrice) && (
+                          <div className="text-[10px] text-ink-500 font-normal">{sec(row.salePrice)}</div>
                         )}
                       </td>
                     </tr>
@@ -98,34 +95,13 @@ export function CustomerPreview({ quote }: CustomerPreviewProps) {
             <div className="rounded-3xl bg-ink-900 p-5 text-white">
               <p className="text-xs uppercase tracking-[0.16em] text-brand-200">{"Fiyat \u00d6zeti"}</p>
               <div className="mt-5 space-y-3">
-                <PriceRow 
-                  label={"Par\u00e7a Toplam\u0131"} 
-                  value={formatCurrency(partsTotal, quote.currency)} 
-                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(partsTotal / quote.exchangeRate, "USD") : formatCurrency(partsTotal * quote.exchangeRate, "TRY")) : undefined}
-                />
-                <PriceRow 
-                  label={"\u0130\u015f\u00e7ilik / Montaj"} 
-                  value={formatCurrency(quote.labor, quote.currency)} 
-                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.labor / quote.exchangeRate, "USD") : formatCurrency(quote.labor * quote.exchangeRate, "TRY")) : undefined}
-                />
-                <PriceRow 
-                  label="Kargo" 
-                  value={formatCurrency(quote.shipping, quote.currency)} 
-                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.shipping / quote.exchangeRate, "USD") : formatCurrency(quote.shipping * quote.exchangeRate, "TRY")) : undefined}
-                />
-                <PriceRow 
-                  label={"\u0130ndirim"} 
-                  value={`-${formatCurrency(quote.discount, quote.currency)}`} 
-                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.discount / quote.exchangeRate, "USD") : formatCurrency(quote.discount * quote.exchangeRate, "TRY")) : undefined}
-                />
+                <PriceRow label={"Par\u00e7a Toplam\u0131"} value={formatCurrency(partsTotal, quote.currency)} secondaryValue={sec(partsTotal) ?? undefined} />
+                <PriceRow label={"\u0130\u015f\u00e7ilik / Montaj"} value={formatCurrency(quote.labor, quote.currency)} secondaryValue={sec(quote.labor) ?? undefined} />
+                <PriceRow label="Kargo" value={formatCurrency(quote.shipping, quote.currency)} secondaryValue={sec(quote.shipping) ?? undefined} />
+                <PriceRow label={"\u0130ndirim"} value={`-${formatCurrency(quote.discount, quote.currency)}`} secondaryValue={sec(quote.discount) ?? undefined} />
               </div>
               <div className="mt-5 border-t border-white/10 pt-5">
-                <PriceRow 
-                  label="Genel Toplam" 
-                  value={formatCurrency(total, quote.currency)} 
-                  strong 
-                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(total / quote.exchangeRate, "USD") : formatCurrency(total * quote.exchangeRate, "TRY")) : undefined}
-                />
+                <PriceRow label="Genel Toplam" value={formatCurrency(total, quote.currency)} strong secondaryValue={sec(total) ?? undefined} />
                 {quote.cashPrice > 0 && <PriceRow label="Nakit Fiyat" value={formatCurrency(quote.cashPrice, quote.currency)} />}
                 {quote.tradePrice > 0 && <PriceRow label={"Takas Fiyat\u0131"} value={formatCurrency(quote.tradePrice, quote.currency)} />}
               </div>

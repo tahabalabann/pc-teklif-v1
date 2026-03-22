@@ -6,7 +6,7 @@ import {
   calculatePartsTotal,
   sanitizeNumber,
 } from "../../utils/quote";
-import { formatCurrency, formatInputNumber } from "../../utils/money";
+import { formatCurrency, formatInputNumber, formatSecondaryCurrency } from "../../utils/money";
 import { Card } from "../ui/Card";
 
 interface PricingSummaryProps {
@@ -31,6 +31,7 @@ export function PricingSummary({ quote, onNumberChange, compact = false }: Prici
   const grandTotal = calculateGrandTotal(quote);
   const estimatedProfit = calculateEstimatedProfit(quote);
   const totalCost = partsCostTotal + sanitizeNumber(quote.costPrice);
+  const secondaryTotal = formatSecondaryCurrency(grandTotal, quote.currency, quote.exchangeRate);
 
   return (
     <Card className="p-5">
@@ -44,11 +45,9 @@ export function PricingSummary({ quote, onNumberChange, compact = false }: Prici
         <div className="rounded-2xl bg-brand-50 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.14em] text-brand-600">Genel Toplam</p>
           <p className="mt-1 text-2xl font-bold text-ink-900">{formatCurrency(grandTotal, quote.currency)}</p>
-          {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
+          {secondaryTotal && (
             <p className="mt-1 text-xs text-brand-700 font-medium whitespace-nowrap">
-              {quote.currency === "TRY"
-                ? `USD Karşılığı: ${formatCurrency(grandTotal / quote.exchangeRate, "USD")}`
-                : `TL Karşılığı: ${formatCurrency(grandTotal * quote.exchangeRate, "TRY")}`}
+              {quote.currency === "TRY" ? "USD" : "TL"} Karşılığı: {secondaryTotal}
             </p>
           )}
         </div>

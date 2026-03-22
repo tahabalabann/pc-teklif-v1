@@ -15,3 +15,20 @@ export const formatInputNumber = (value: number) => {
   const safeValue = sanitizeNumber(value);
   return safeValue === 0 ? "" : String(safeValue);
 };
+
+/** Check if quote has a valid secondary currency */
+export const hasSecondaryCurrency = (exchangeRate?: number): boolean =>
+  Boolean(exchangeRate && exchangeRate > 0 && exchangeRate !== 1);
+
+/** Format a value in the secondary currency based on the primary currency and exchange rate */
+export const formatSecondaryCurrency = (
+  value: number,
+  primaryCurrency: "TRY" | "USD" | "EUR" | "GBP" = "TRY",
+  exchangeRate?: number,
+): string | null => {
+  if (!hasSecondaryCurrency(exchangeRate)) return null;
+  const rate = exchangeRate!;
+  return primaryCurrency === "TRY"
+    ? formatCurrency(value / rate, "USD")
+    : formatCurrency(value * rate, "TRY");
+};

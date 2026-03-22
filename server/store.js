@@ -818,10 +818,33 @@ export async function listUsersForDashboard(currentUser) {
 
 export async function getDashboardSummaryForUser(user) {
   const todayPrefix = new Date().toISOString().slice(0, 10);
-  const quotes = await listQuotesForUser(user);
-  const shipments = await listShipmentRecordsForUser(user);
-  const requests = await listDepositRequestsForUser(user);
-  const users = await listUsersForDashboard(user);
+
+  // Quotes & shipments still need JS parsing (JSON data column)
+  const [quotes, shipments, pendingCountRows, lowBalanceCountRows] = await Promise.all([
+    listQuotesForUser(user),
+    listShipmentRecordsForUser(user),
+    // Direct COUNT instead of fetching all deposit requests
+    prisma.$queryRaw(
+      Prisma.sql`
+        SELECT COUNT(*) AS "count"
+        FROM "DepositRequest" d
+        JOIN "User" requester ON requester."id" = d."requesterUserId"
+        WHERE requester."companyId" = ${user.companyId} AND d."status" = 'pending'
+      `,
+    ),
+    // Direct COUNT instead of fetching all users
+    prisma.$queryRaw(
+      Prisma.sql`
+        SELECT COUNT(*) AS "count"
+        FROM "User"
+        WHERE "companyId" = ${user.companyId}
+          AND COALESCE("isActive", 1) = 1
+          AND "role" != 'admin'
+          AND COALESCE("balance", 0) < 150
+      `,
+    ),
+  ]);
+
   const quoteShipmentsToday = quotes.filter(
     (item) => item?.geliverShipment && String(item.geliverShipment.createdAt || item.updatedAt || "").startsWith(todayPrefix),
   ).length;
@@ -831,10 +854,8 @@ export async function getDashboardSummaryForUser(user) {
     todayShipments:
       shipments.filter((item) => String(item.createdAt || item.updatedAt || "").startsWith(todayPrefix)).length +
       quoteShipmentsToday,
-    pendingDepositRequests: requests.filter((item) => item.status === "pending").length,
-    lowBalanceUsers: users.filter(
-      (item) => item.isActive !== false && item.role !== "admin" && Number(item.balance || 0) < 150,
-    ).length,
+    pendingDepositRequests: Number(pendingCountRows[0]?.count || 0),
+    lowBalanceUsers: Number(lowBalanceCountRows[0]?.count || 0),
   };
 }
 
@@ -1789,17 +1810,23 @@ async function getOwnerScopedRow(tableName, recordId) {
     throw new Error(`Unsupported owner-scoped table: ${tableName}`);
   }
 
-  const rows = await prisma.$queryRawUnsafe(
-    `
-      SELECT t."ownerUserId" AS "ownerUserId", u."companyId" AS "companyId"
-      FROM "${tableName}" t
-      JOIN "User" u ON u."id" = t."ownerUserId"
-      WHERE t."id" = $1
-      LIMIT 1
-    `,
-    recordId,
-  );
+  // Use explicit per-table queries to avoid $queryRawUnsafe entirely
+  const queryMap = {
+    Quote: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "Quote" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    AddressBookEntry: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "AddressBookEntry" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    SenderAddressBookEntry: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "SenderAddressBookEntry" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    CompanyDirectoryEntry: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "CompanyDirectoryEntry" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    ShipmentRecord: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "ShipmentRecord" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    ProductCatalogEntry: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "ProductCatalogEntry" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+    Notification: () => prisma.$queryRaw(Prisma.sql`SELECT t."ownerUserId", u."companyId" FROM "Notification" t JOIN "User" u ON u."id" = t."ownerUserId" WHERE t."id" = ${recordId} LIMIT 1`),
+  };
 
+  const queryFn = queryMap[tableName];
+  if (!queryFn) {
+    throw new Error(`No query defined for owner-scoped table: ${tableName}`);
+  }
+
+  const rows = await queryFn();
   return rows[0] || null;
 }
 
