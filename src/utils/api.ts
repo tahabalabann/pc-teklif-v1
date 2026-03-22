@@ -181,16 +181,16 @@ export interface CatalogProduct {
 }
 
 export const productsApi = {
-  list: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/products")).products,
+  list: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/quotes/products")).products,
   save: async (product: Partial<CatalogProduct>) =>
     (
-      await apiRequest<{ product: CatalogProduct }>("/api/products", {
+      await apiRequest<{ product: CatalogProduct }>("/api/quotes/products", {
         method: "POST",
         body: JSON.stringify({ product }),
       })
     ).product,
   delete: async (productId: string) => {
-    await apiRequest<{ ok: true }>(`/api/products/${productId}`, { method: "DELETE" });
+    await apiRequest<{ ok: true }>(`/api/quotes/products/${productId}`, { method: "DELETE" });
   },
 };
 
