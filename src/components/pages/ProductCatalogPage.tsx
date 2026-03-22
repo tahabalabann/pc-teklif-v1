@@ -3,15 +3,12 @@ import { toast } from "react-hot-toast";
 import type { CatalogProduct } from "../../utils/api";
 import { productsApi } from "../../utils/api";
 import { formatCurrency } from "../../utils/money";
+import { DEFAULT_ROW_CATEGORIES } from "../../utils/quote";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { Modal } from "../ui/Modal";
 
-const DEFAULT_CATEGORIES = [
-  "İşlemci", "Anakart", "Ekran Kartı", "RAM", "SSD", "HDD",
-  "Güç Kaynağı", "Kasa", "Sıvı Soğutma", "Fan", "Monitör",
-  "Klavye / Mouse", "Kulaklık", "Diğer",
-];
+const DEFAULT_CATEGORIES = DEFAULT_ROW_CATEGORIES;
 
 export function ProductCatalogPage() {
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -118,7 +115,6 @@ export function ProductCatalogPage() {
     return true;
   });
 
-  const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
   return (
     <div className="space-y-6">
@@ -148,7 +144,7 @@ export function ProductCatalogPage() {
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
             <option value="">Tüm Kategoriler</option>
-            {categories.map((c) => (
+            {DEFAULT_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -216,16 +212,15 @@ export function ProductCatalogPage() {
           <div className="space-y-4">
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Kategori</span>
-              <input
-                list="category-list"
+              <select
                 className="field"
                 value={formData.category}
                 onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="Örn: İşlemci"
-              />
-              <datalist id="category-list">
-                {DEFAULT_CATEGORIES.map(c => <option key={c} value={c} />)}
-              </datalist>
+              >
+                {DEFAULT_CATEGORIES.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium">Ürün Adı / Model</span>

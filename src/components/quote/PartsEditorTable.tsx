@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "react";
 import type { QuoteRow } from "../../types/quote";
-import { partsCatalog } from "../../data/partsCatalog";
+import { partsCatalog, type CatalogPartItem } from "../../data/partsCatalog";
 import { DEFAULT_ROW_CATEGORIES, generateId, sanitizeNumber } from "../../utils/quote";
+import { productsApi } from "../../utils/api";
 import { formatCurrency, formatInputNumber } from "../../utils/money";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
@@ -12,23 +13,47 @@ interface PartsEditorTableProps {
 }
 
 export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
+  const [dynamicProducts, setDynamicProducts] = useState<CatalogPartItem[]>([]);
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("Tum Kategoriler");
   const [catalogBrandFilter, setCatalogBrandFilter] = useState("Tum Markalar");
 
+  useEffect(() => {
+    productsApi.list()
+      .then((products) => {
+        setDynamicProducts(
+          products.map((p) => ({
+            id: p.id,
+            category: p.category,
+            product: p.name,
+            description: p.description,
+            purchasePrice: p.purchasePrice,
+            salePrice: p.salePrice,
+            brand: "Katalog",
+          }))
+        );
+      })
+      .catch(() => {});
+  }, []);
+
+  const allCatalogItems = useMemo(
+    () => [...partsCatalog, ...dynamicProducts],
+    [dynamicProducts]
+  );
+
   const catalogCategories = useMemo(
-    () => ["Tum Kategoriler", ...Array.from(new Set(partsCatalog.map((item) => item.category))).sort()],
+    () => ["Tum Kategoriler", ...DEFAULT_ROW_CATEGORIES],
     [],
   );
   const catalogBrands = useMemo(
-    () => ["Tum Markalar", ...Array.from(new Set(partsCatalog.map((item) => item.brand || "Belirsiz"))).sort()],
-    [],
+    () => ["Tum Markalar", ...Array.from(new Set(allCatalogItems.map((item) => item.brand || "Belirsiz"))).sort()],
+    [allCatalogItems],
   );
 
   const filteredCatalog = useMemo(() => {
     const query = catalogSearch.trim().toLowerCase();
 
-    return partsCatalog.filter((item) => {
+    return allCatalogItems.filter((item) => {
       const categoryMatch = catalogCategoryFilter === "Tum Kategoriler" || item.category === catalogCategoryFilter;
       const brandMatch = catalogBrandFilter === "Tum Markalar" || (item.brand || "Belirsiz") === catalogBrandFilter;
       const searchMatch =
@@ -40,22 +65,19 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
 
       return categoryMatch && brandMatch && searchMatch;
     });
-  }, [catalogBrandFilter, catalogCategoryFilter, catalogSearch]);
+  }, [catalogBrandFilter, catalogCategoryFilter, catalogSearch, allCatalogItems]);
 
-  const [catalogItemId, setCatalogItemId] = useState(filteredCatalog[0]?.id || partsCatalog[0]?.id || "");
+  const [catalogItemId, setCatalogItemId] = useState("");
 
   useEffect(() => {
-    if (!filteredCatalog.length) {
-      return;
-    }
-    if (!filteredCatalog.some((item) => item.id === catalogItemId)) {
+    if (filteredCatalog.length > 0 && !catalogItemId) {
       setCatalogItemId(filteredCatalog[0].id);
     }
-  }, [catalogItemId, filteredCatalog]);
+  }, [filteredCatalog, catalogItemId]);
 
   const selectedCatalogItem = useMemo(
-    () => filteredCatalog.find((item) => item.id === catalogItemId) || partsCatalog.find((item) => item.id === catalogItemId) || null,
-    [catalogItemId, filteredCatalog],
+    () => filteredCatalog.find((item) => item.id === catalogItemId) || allCatalogItems.find((item) => item.id === catalogItemId) || null,
+    [catalogItemId, filteredCatalog, allCatalogItems],
   );
 
   const updateRow = (id: string, field: keyof QuoteRow, value: string | number) => {
