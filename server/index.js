@@ -56,7 +56,7 @@ app.use("/api/public/quotes", publicQuotesRouter);
 app.use("/api/address-book", addressRouter);
 app.use("/api/sender-address-book", senderAddressRouter);
 app.use("/api/companies", companiesRouter);
-app.use("/api/shipping", shippingRouter);
+app.use("/api", shippingRouter);
 app.use("/api/notifications", notificationRouter);
 
 import { ratesRouter } from "./routes/rates.routes.js";
