@@ -4,3 +4,11 @@ dist
 vite.config.js
 vite.config.d.ts
 .env
+prisma/dev.db
+tools/
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!tsconfig.node.json
+!composer.json

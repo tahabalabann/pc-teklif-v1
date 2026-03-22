@@ -18,9 +18,9 @@ import { Toaster, toast } from "react-hot-toast";
 import { CustomerPortalPage } from "./components/pages/CustomerPortalPage";
 import { ProductCatalogPage } from "./components/pages/ProductCatalogPage";
 import { useNotificationsState } from "./hooks/useNotificationsState";
+import { useAppStore, useQuoteStore } from "./store/useAppStore";
 import type {
   AppUser,
-  AuthSession,
   CompanyRecord,
   CompanySettings,
   PrintTemplateMode,
@@ -37,7 +37,12 @@ function App() {
   const navigate = useNavigate();
   const route = (location.pathname.replace(/^\/+/g, "") || "quotes") as AppRoute;
   const setRoute = (r: AppRoute | string) => navigate(`/${r}`);
-  const [theme, setTheme] = useLocalStorage<"light" | "dark">("pc-teklif:theme", "light");
+  
+  const theme = useAppStore((state) => state.theme);
+  const setTheme = useAppStore((state) => state.setTheme);
+  const session = useAppStore((state) => state.session);
+  const setSession = useAppStore((state) => state.setSession);
+
   const [showItemPricesInPrint, setShowItemPricesInPrint] = useLocalStorage<boolean>(
     "pc-teklif:showItemPricesInPrint",
     true,
@@ -46,10 +51,16 @@ function App() {
     "pc-teklif:printTemplate",
     "standard",
   );
-  const [session, setSession] = useState<AuthSession | null>(null);
-  const [savedQuotes, setSavedQuotes] = useState<Quote[]>([]);
+  
+  const savedQuotes = useQuoteStore((state) => state.savedQuotes);
+  const setSavedQuotes = useQuoteStore((state) => state.setSavedQuotes);
+  const addOrUpdateSavedQuote = useQuoteStore((state) => state.addOrUpdateSavedQuote);
+  const removeSavedQuote = useQuoteStore((state) => state.removeSavedQuote);
   const [companySettings, setCompanySettings] = useState<CompanySettings | null>(null);
-  const [currentQuote, setCurrentQuote] = useState<Quote>(createEmptyQuote());
+  
+  const storeActiveQuote = useQuoteStore((state) => state.activeQuote);
+  const currentQuote = storeActiveQuote || createEmptyQuote();
+  const setCurrentQuote = useQuoteStore((state) => state.setActiveQuote);
   const [isBooting, setIsBooting] = useState(true);
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -141,11 +152,10 @@ function App() {
         lastSavedSnapshotRef.current = JSON.stringify(saved);
         setLastAutoSavedAt(saved.updatedAt);
         setAutoSaveState("saved");
-        setSavedQuotes((prev) => {
-          const exists = prev.some((item) => item.id === saved.id);
-          return exists ? prev.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...prev];
-        });
-        setCurrentQuote((prev) => (prev.id === saved.id ? saved : prev));
+        addOrUpdateSavedQuote(saved);
+        if (currentQuote.id === saved.id) {
+          setCurrentQuote(saved);
+        }
       } catch (caughtError) {
         setAutoSaveState("error");
         const msg = caughtError instanceof Error ? caughtError.message : "Teklif kaydedilemedi.";
@@ -188,7 +198,7 @@ function App() {
   };
 
   const patchQuote = (patch: Partial<Quote>) => {
-    setCurrentQuote((prev) => touchQuote({ ...sanitizeQuote(prev), ...patch }));
+    setCurrentQuote(touchQuote({ ...sanitizeQuote(currentQuote), ...patch }));
   };
 
   const resetSaveIndicators = () => {
@@ -204,10 +214,7 @@ function App() {
       setLastAutoSavedAt(saved.updatedAt);
       setAutoSaveState("saved");
       setAutoSaveError("");
-      setSavedQuotes((prev) => {
-        const exists = prev.some((item) => item.id === saved.id);
-        return exists ? prev.map((item) => (item.id === saved.id ? saved : item)) : [saved, ...prev];
-      });
+      addOrUpdateSavedQuote(saved);
       setCurrentQuote(saved);
       toast.success("Teklif başariyla kaydedildi");
     } catch (caughtError) {
@@ -234,13 +241,11 @@ function App() {
 
     skipAutoSaveRef.current = true;
     resetSaveIndicators();
-    setCurrentQuote((prev) => {
-      const reset = createDefaultQuote(session.user, companySettings);
-      return {
-        ...reset,
-        id: prev.id,
-        quoteNo: prev.quoteNo,
-      };
+    const reset = createDefaultQuote(session.user, companySettings);
+    setCurrentQuote({
+      ...reset,
+      id: currentQuote.id,
+      quoteNo: currentQuote.quoteNo,
     });
   };
 
@@ -260,7 +265,7 @@ function App() {
   const handleDeleteQuote = async (id: string) => {
     try {
       await quotesApi.delete(id);
-      setSavedQuotes((prev) => prev.filter((quote) => quote.id !== id));
+      removeSavedQuote(id);
       toast.success("Teklif silindi");
 
       if (activeQuote.id === id) {
@@ -348,30 +353,27 @@ function App() {
 
   const handleCompanySettingsSaved = (nextCompany: CompanySettings) => {
     setCompanySettings(nextCompany);
-    setSession((prev) =>
-      prev
-        ? {
-            ...prev,
-            user: {
-              ...prev.user,
-              companyName: nextCompany.companyName,
-            },
-          }
-        : prev,
-    );
-    setCurrentQuote((prev) => {
-      const nextQuote = { ...prev };
-      if (!prev.companyName || prev.companyName === session?.user.companyName) {
-        nextQuote.companyName = nextCompany.companyName;
-      }
-      if (nextCompany.logoUrl && (!prev.companyLogo || prev.companyLogo === "")) {
-        nextQuote.companyLogo = nextCompany.logoUrl;
-      }
-      if (nextCompany.sellerInfo && (!prev.sellerInfo || prev.sellerInfo === createEmptyQuote().sellerInfo)) {
-        nextQuote.sellerInfo = nextCompany.sellerInfo;
-      }
-      return touchQuote(nextQuote);
-    });
+    if (session) {
+      setSession({
+        ...session,
+        user: {
+          ...session.user,
+          companyName: nextCompany.companyName,
+        },
+      });
+    }
+
+    const nextQuote = { ...activeQuote };
+    if (!activeQuote.companyName || activeQuote.companyName === session?.user.companyName) {
+      nextQuote.companyName = nextCompany.companyName;
+    }
+    if (nextCompany.logoUrl && (!activeQuote.companyLogo || activeQuote.companyLogo === "")) {
+      nextQuote.companyLogo = nextCompany.logoUrl;
+    }
+    if (nextCompany.sellerInfo && (!activeQuote.sellerInfo || activeQuote.sellerInfo === createEmptyQuote().sellerInfo)) {
+      nextQuote.sellerInfo = nextCompany.sellerInfo;
+    }
+    setCurrentQuote(touchQuote(nextQuote));
   };
 
   const handleLogout = async () => {
@@ -469,12 +471,12 @@ function App() {
             onMarkAllNotificationsRead={() => void handleMarkAllNotificationsRead()}
             onPrint={() => window.print()}
             theme={theme}
-            onThemeToggle={() => setTheme((prev) => (prev === "dark" ? "light" : "dark"))}
+            onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
             unreadNotificationCount={notifications.filter((item) => !item.readAt).length}
           />
         )}
 
-        <main className={`mx-auto animate-fade-in ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
+        <main className={`relative z-0 mx-auto animate-fade-in ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
           <div className="space-y-6">
             <Routes>
               <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
@@ -532,9 +534,11 @@ function App() {
                     onDuplicateQuote={handleDuplicateQuote}
                     onOpenQuote={handleOpenQuote}
                     onPatchQuote={patchQuote}
-                    onCurrentUserBalanceChange={(balance) =>
-                      setSession((prev) => (prev ? { ...prev, user: { ...prev.user, balance } } : prev))
-                    }
+                    onCurrentUserBalanceChange={(balance) => {
+                      if (session) {
+                        setSession({ ...session, user: { ...session.user, balance } });
+                      }
+                    }}
                     savedQuotes={normalizedSavedQuotes}
                   />
                 ) : <Navigate to="/quotes" replace />

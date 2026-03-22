@@ -241,8 +241,8 @@ export async function createUser({ name, email, password, role, companyId, actor
 }
 
 export async function listOrganizationsForPlatformAdmin() {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT
         o."id" AS "id",
         o."name" AS "companyName",
@@ -337,8 +337,8 @@ export async function createOrganizationWithAdmin({ companyName, adminName, admi
     message: `${normalizedCompanyName} firması oluşturuldu.`,
   });
 
-  const createdRows = await prisma.$queryRawUnsafe(
-    `
+  const createdRows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT
         o."id" AS "id",
         o."name" AS "companyName",
@@ -347,10 +347,9 @@ export async function createOrganizationWithAdmin({ companyName, adminName, admi
         SUM(CASE WHEN u."role" = 'admin' THEN 1 ELSE 0 END) AS "adminCount"
       FROM "Organization" o
       LEFT JOIN "User" u ON u."companyId" = o."id"
-      WHERE o."id" = ?
+      WHERE o."id" = ${organizationId}
       GROUP BY o."id", o."name", o."createdAt"
     `,
-    organizationId,
   );
 
   return {
@@ -713,8 +712,8 @@ export async function getWalletSummaryForUser(user) {
 }
 
 export async function listWalletLedgerForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT
         w."id" AS "id",
         w."userId" AS "userId",
@@ -732,12 +731,10 @@ export async function listWalletLedgerForUser(user) {
       LEFT JOIN "User" target ON target."id" = w."userId"
       LEFT JOIN "User" creator ON creator."id" = w."createdByUserId"
       LEFT JOIN "Organization" company ON company."id" = w."companyId"
-      WHERE w."companyId" = ? OR ? = 1
+      WHERE w."companyId" = ${user.companyId} OR ${user.isPlatformAdmin ? 1 : 0} = 1
       ORDER BY w."createdAt" DESC
       LIMIT 200
     `,
-    user.companyId,
-    user.isPlatformAdmin ? 1 : 0,
   );
 
   return rows.map((row) => ({
@@ -757,8 +754,8 @@ export async function listWalletLedgerForUser(user) {
 }
 
 export async function listAuditLogsForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT
         a."id" AS "id",
         a."companyId" AS "companyId",
@@ -773,12 +770,10 @@ export async function listAuditLogsForUser(user) {
       FROM "AuditLog" a
       LEFT JOIN "User" actor ON actor."id" = a."actorUserId"
       LEFT JOIN "Organization" company ON company."id" = a."companyId"
-      WHERE a."companyId" = ? OR ? = 1
+      WHERE a."companyId" = ${user.companyId} OR ${user.isPlatformAdmin ? 1 : 0} = 1
       ORDER BY a."createdAt" DESC
       LIMIT 200
     `,
-    user.companyId,
-    user.isPlatformAdmin ? 1 : 0,
   );
 
   return rows.map((row) => ({
@@ -796,8 +791,8 @@ export async function listAuditLogsForUser(user) {
 }
 
 export async function listUsersForDashboard(currentUser) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT
         u."id" AS "id",
         u."name" AS "name",
@@ -811,11 +806,9 @@ export async function listUsersForDashboard(currentUser) {
         o."name" AS "companyName"
       FROM "User" u
       LEFT JOIN "Organization" o ON o."id" = u."companyId"
-      WHERE u."companyId" = ? OR ? = 1
+      WHERE u."companyId" = ${currentUser.companyId} OR ${currentUser.isPlatformAdmin ? 1 : 0} = 1
       ORDER BY u."createdAt" ASC
     `,
-    currentUser.companyId,
-    currentUser.isPlatformAdmin ? 1 : 0,
   );
 
   return rows.map(publicUser);
@@ -848,22 +841,22 @@ export async function getCompanyReportsForUser(user) {
     ? await listOrganizationsForPlatformAdmin()
     : (await listOrganizationsForPlatformAdmin()).filter((item) => item.id === user.companyId);
 
-  const quoteRows = await prisma.$queryRawUnsafe(
-    `
+  const quoteRows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT q."data" AS "data", u."companyId" AS "companyId"
       FROM "Quote" q
       JOIN "User" u ON u."id" = q."ownerUserId"
     `,
   );
-  const shipmentRows = await prisma.$queryRawUnsafe(
-    `
+  const shipmentRows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT s."data" AS "data", u."companyId" AS "companyId"
       FROM "ShipmentRecord" s
       JOIN "User" u ON u."id" = s."ownerUserId"
     `,
   );
-  const depositRows = await prisma.$queryRawUnsafe(
-    `
+  const depositRows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT d."amount" AS "amount", d."status" AS "status", requester."companyId" AS "companyId"
       FROM "DepositRequest" d
       JOIN "User" requester ON requester."id" = d."requesterUserId"
@@ -1048,31 +1041,24 @@ export async function approveDepositRequestForUser(user, requestId) {
   const now = new Date().toISOString();
 
   const balance = await prisma.$transaction(async (tx) => {
-    const updatedRequests = await tx.$executeRawUnsafe(
-      `
+    const updatedRequests = await tx.$executeRaw(
+      Prisma.sql`
         UPDATE "DepositRequest"
-        SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
-        WHERE "id" = ? AND "status" = ?
+        SET "status" = ${"approved"}, "approvedByUserId" = ${user.id}, "updatedAt" = ${now}
+        WHERE "id" = ${requestId} AND "status" = ${"pending"}
       `,
-      "approved",
-      user.id,
-      now,
-      requestId,
-      "pending",
     );
 
     if (updatedRequests === 0) {
       throw new Error("Bu talep zaten işlenmiş.");
     }
 
-    const updatedUsers = await tx.$executeRawUnsafe(
-      `
+    const updatedUsers = await tx.$executeRaw(
+      Prisma.sql`
         UPDATE "User"
-        SET "balance" = COALESCE("balance", 0) + ?
-        WHERE "id" = ?
+        SET "balance" = COALESCE("balance", 0) + ${approvedAmount}
+        WHERE "id" = ${request.requesterUserId}
       `,
-      approvedAmount,
-      request.requesterUserId,
     );
 
     if (updatedUsers === 0) {
@@ -1134,17 +1120,12 @@ export async function rejectDepositRequestForUser(user, requestId) {
   const now = new Date().toISOString();
 
   await prisma.$transaction(async (tx) => {
-    const updatedRequests = await tx.$executeRawUnsafe(
-      `
+    const updatedRequests = await tx.$executeRaw(
+      Prisma.sql`
         UPDATE "DepositRequest"
-        SET "status" = ?, "approvedByUserId" = ?, "updatedAt" = ?
-        WHERE "id" = ? AND "status" = ?
+        SET "status" = ${"rejected"}, "approvedByUserId" = ${user.id}, "updatedAt" = ${now}
+        WHERE "id" = ${requestId} AND "status" = ${"pending"}
       `,
-      "rejected",
-      user.id,
-      now,
-      requestId,
-      "pending",
     );
 
     if (updatedRequests === 0) {
@@ -1201,15 +1182,12 @@ export async function consumeUserBalance(userId, amount) {
       throw new Error("Kullanıcı bulunamadı.");
     }
 
-    const updatedUsers = await tx.$executeRawUnsafe(
-      `
+    const updatedUsers = await tx.$executeRaw(
+      Prisma.sql`
         UPDATE "User"
-        SET "balance" = COALESCE("balance", 0) - ?
-        WHERE "id" = ? AND COALESCE("balance", 0) >= ?
+        SET "balance" = COALESCE("balance", 0) - ${numericAmount}
+        WHERE "id" = ${userId} AND COALESCE("balance", 0) >= ${numericAmount}
       `,
-      numericAmount,
-      userId,
-      numericAmount,
     );
 
     if (updatedUsers === 0) {
@@ -1248,15 +1226,14 @@ export async function consumeUserBalance(userId, amount) {
 }
 
 export async function listQuotesForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT q."data" AS "data"
       FROM "Quote" q
       JOIN "User" u ON u."id" = q."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY q."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => JSON.parse(row.data));
@@ -1273,29 +1250,23 @@ export async function saveQuoteForUser(user, quote) {
 
   await assertOwnedByCompanyOrThrow("Quote", payload.id, user.companyId, "Bu teklif başka bir firmaya ait olduğu için güncellenemez.");
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "Quote" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "Quote" WHERE "id" = ${payload.id} LIMIT 1`
+  );
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "Quote"
-        SET "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      JSON.stringify(payload),
-      payload.updatedAt,
-      payload.id,
+        SET "data" = ${JSON.stringify(payload)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "Quote" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      user.id,
-      JSON.stringify(payload),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${user.id}, ${JSON.stringify(payload)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1317,11 +1288,11 @@ export async function deleteQuoteForUser(user, quoteId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "Quote" WHERE "id" = ?`, quoteId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "Quote" WHERE "id" = ${quoteId}`);
 }
 
 export async function getPublicQuoteById(id) {
-  const rows = await prisma.$queryRawUnsafe(`SELECT "data" FROM "Quote" WHERE "id" = ? LIMIT 1`, id);
+  const rows = await prisma.$queryRaw(Prisma.sql`SELECT "data" FROM "Quote" WHERE "id" = ${id} LIMIT 1`);
   if (!rows[0]) return null;
   return JSON.parse(rows[0].data);
 }
@@ -1333,26 +1304,22 @@ export async function updatePublicQuoteStatus(id, status) {
   quote.status = status;
   quote.updatedAt = new Date().toISOString();
   
-  await prisma.$executeRawUnsafe(
-    `UPDATE "Quote" SET "data" = ?, "updatedAt" = ? WHERE "id" = ?`,
-    JSON.stringify(quote),
-    quote.updatedAt,
-    id
+  await prisma.$executeRaw(
+    Prisma.sql`UPDATE "Quote" SET "data" = ${JSON.stringify(quote)}, "updatedAt" = ${quote.updatedAt} WHERE "id" = ${id}`
   );
   
   return quote;
 }
 
 export async function listAddressBookForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT a."id", a."label", a."data", a."createdAt", a."updatedAt"
       FROM "AddressBookEntry" a
       JOIN "User" u ON u."id" = a."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY a."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => ({
@@ -1378,31 +1345,21 @@ export async function saveAddressBookEntryForUser(user, entry) {
 
   await assertOwnedByCompanyOrThrow("AddressBookEntry", payload.id, user.companyId, "Bu adres kaydı başka bir firmaya ait.");
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "AddressBookEntry" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "AddressBookEntry" WHERE "id" = ${payload.id} LIMIT 1`);
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "AddressBookEntry"
-        SET "label" = ?, "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      payload.label,
-      JSON.stringify(payload.recipient),
-      payload.updatedAt,
-      payload.id,
+        SET "label" = ${payload.label}, "data" = ${JSON.stringify(payload.recipient)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "AddressBookEntry" ("id", "ownerUserId", "label", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      payload.ownerUserId,
-      payload.label,
-      JSON.stringify(payload.recipient),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${payload.ownerUserId}, ${payload.label}, ${JSON.stringify(payload.recipient)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1421,19 +1378,18 @@ export async function deleteAddressBookEntryForUser(user, addressId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "AddressBookEntry" WHERE "id" = ?`, addressId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "AddressBookEntry" WHERE "id" = ${addressId}`);
 }
 
 export async function listSenderAddressBookForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT a."id", a."label", a."data", a."createdAt", a."updatedAt"
       FROM "SenderAddressBookEntry" a
       JOIN "User" u ON u."id" = a."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY a."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => ({
@@ -1464,31 +1420,21 @@ export async function saveSenderAddressBookEntryForUser(user, entry) {
     "Bu gönderici adresi başka bir firmaya ait.",
   );
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "SenderAddressBookEntry" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "SenderAddressBookEntry" WHERE "id" = ${payload.id} LIMIT 1`);
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "SenderAddressBookEntry"
-        SET "label" = ?, "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      payload.label,
-      JSON.stringify(payload.recipient),
-      payload.updatedAt,
-      payload.id,
+        SET "label" = ${payload.label}, "data" = ${JSON.stringify(payload.recipient)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "SenderAddressBookEntry" ("id", "ownerUserId", "label", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      payload.ownerUserId,
-      payload.label,
-      JSON.stringify(payload.recipient),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${payload.ownerUserId}, ${payload.label}, ${JSON.stringify(payload.recipient)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1507,34 +1453,32 @@ export async function deleteSenderAddressBookEntryForUser(user, addressId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "SenderAddressBookEntry" WHERE "id" = ?`, addressId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "SenderAddressBookEntry" WHERE "id" = ${addressId}`);
 }
 
 export async function listCompaniesForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT c."data" AS "data"
       FROM "CompanyDirectoryEntry" c
       JOIN "User" u ON u."id" = c."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY c."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => JSON.parse(row.data));
 }
 
 export async function listShipmentRecordsForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT s."data" AS "data"
       FROM "ShipmentRecord" s
       JOIN "User" u ON u."id" = s."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY s."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => JSON.parse(row.data));
@@ -1551,29 +1495,21 @@ export async function saveShipmentRecordForUser(user, shipmentRecord) {
 
   await assertOwnedByCompanyOrThrow("ShipmentRecord", payload.id, user.companyId, "Bu kargo kaydı başka bir firmaya ait.");
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "ShipmentRecord" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "ShipmentRecord" WHERE "id" = ${payload.id} LIMIT 1`);
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "ShipmentRecord"
-        SET "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      JSON.stringify(payload),
-      payload.updatedAt,
-      payload.id,
+        SET "data" = ${JSON.stringify(payload)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "ShipmentRecord" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      user.id,
-      JSON.stringify(payload),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${user.id}, ${JSON.stringify(payload)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1600,29 +1536,21 @@ export async function saveCompanyForUser(user, company) {
 
   await assertOwnedByCompanyOrThrow("CompanyDirectoryEntry", payload.id, user.companyId, "Bu firma kaydı başka bir firmaya ait.");
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "CompanyDirectoryEntry" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(Prisma.sql`SELECT "id" FROM "CompanyDirectoryEntry" WHERE "id" = ${payload.id} LIMIT 1`);
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "CompanyDirectoryEntry"
-        SET "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      JSON.stringify(payload),
-      payload.updatedAt,
-      payload.id,
+        SET "data" = ${JSON.stringify(payload)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "CompanyDirectoryEntry" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      user.id,
-      JSON.stringify(payload),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${user.id}, ${JSON.stringify(payload)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1635,7 +1563,7 @@ export async function deleteShipmentRecordForUser(user, shipmentId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "ShipmentRecord" WHERE "id" = ?`, shipmentId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "ShipmentRecord" WHERE "id" = ${shipmentId}`);
 }
 
 export async function deleteCompanyForUser(user, companyId) {
@@ -1644,7 +1572,7 @@ export async function deleteCompanyForUser(user, companyId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "CompanyDirectoryEntry" WHERE "id" = ?`, companyId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "CompanyDirectoryEntry" WHERE "id" = ${companyId}`);
 }
 
 export async function disconnectStore() {
@@ -1657,14 +1585,13 @@ export async function createManualWalletAdjustment(currentUser, { userId, amount
     throw new Error("Tutar sıfır olamaz.");
   }
 
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT "id", "companyId"
       FROM "User"
-      WHERE "id" = ?
+      WHERE "id" = ${userId}
       LIMIT 1
     `,
-    userId,
   );
 
   const targetUser = rows[0];
@@ -1676,10 +1603,8 @@ export async function createManualWalletAdjustment(currentUser, { userId, amount
     throw new Error("Bu kullanıcı başka bir firmaya ait.");
   }
 
-  await prisma.$executeRawUnsafe(
-    `UPDATE "User" SET "balance" = COALESCE("balance", 0) + ? WHERE "id" = ?`,
-    numericAmount,
-    userId,
+  await prisma.$executeRaw(
+    Prisma.sql`UPDATE "User" SET "balance" = COALESCE("balance", 0) + ${numericAmount} WHERE "id" = ${userId}`,
   );
 
   const nextBalance = await getUserBalance(userId);
@@ -1867,7 +1792,7 @@ async function getOwnerScopedRow(tableName, recordId) {
       SELECT t."ownerUserId" AS "ownerUserId", u."companyId" AS "companyId"
       FROM "${tableName}" t
       JOIN "User" u ON u."id" = t."ownerUserId"
-      WHERE t."id" = ?
+      WHERE t."id" = $1
       LIMIT 1
     `,
     recordId,
@@ -1888,15 +1813,14 @@ async function assertOwnedByCompanyOrThrow(tableName, recordId, companyId, messa
 // ============================================================================
 
 export async function listProductsForUser(user) {
-  const rows = await prisma.$queryRawUnsafe(
-    `
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`
       SELECT p."id", p."data", p."createdAt", p."updatedAt"
       FROM "ProductCatalogEntry" p
       JOIN "User" u ON u."id" = p."ownerUserId"
-      WHERE u."companyId" = ?
+      WHERE u."companyId" = ${user.companyId}
       ORDER BY p."updatedAt" DESC
     `,
-    user.companyId,
   );
 
   return rows.map((row) => ({
@@ -1909,10 +1833,6 @@ export async function listProductsForUser(user) {
 
 export async function saveProductForUser(user, product) {
   const now = new Date().toISOString();
-  import("node:crypto").then(({ randomUUID }) => {}).catch(()=>{}); // Ensuring it exists
-  const crypto = await import("node:crypto");
-  const randomUUID = crypto.randomUUID;
-
   const id = product.id || randomUUID();
   const payload = {
     ...product,
@@ -1923,29 +1843,23 @@ export async function saveProductForUser(user, product) {
 
   await assertOwnedByCompanyOrThrow("ProductCatalogEntry", payload.id, user.companyId, "Bu ürün başka bir firmaya ait.");
 
-  const existingRows = await prisma.$queryRawUnsafe(`SELECT "id" FROM "ProductCatalogEntry" WHERE "id" = ? LIMIT 1`, payload.id);
+  const existingRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "ProductCatalogEntry" WHERE "id" = ${payload.id} LIMIT 1`
+  );
   if (existingRows[0]) {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         UPDATE "ProductCatalogEntry"
-        SET "data" = ?, "updatedAt" = ?
-        WHERE "id" = ?
-      `,
-      JSON.stringify(payload),
-      payload.updatedAt,
-      payload.id,
+        SET "data" = ${JSON.stringify(payload)}, "updatedAt" = ${payload.updatedAt}
+        WHERE "id" = ${payload.id}
+      `
     );
   } else {
-    await prisma.$executeRawUnsafe(
-      `
+    await prisma.$executeRaw(
+      Prisma.sql`
         INSERT INTO "ProductCatalogEntry" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
-        VALUES (?, ?, ?, ?, ?)
-      `,
-      payload.id,
-      user.id,
-      JSON.stringify(payload),
-      payload.createdAt,
-      payload.updatedAt,
+        VALUES (${payload.id}, ${user.id}, ${JSON.stringify(payload)}, ${payload.createdAt}, ${payload.updatedAt})
+      `
     );
   }
 
@@ -1958,5 +1872,5 @@ export async function deleteProductForUser(user, productId) {
     return;
   }
 
-  await prisma.$executeRawUnsafe(`DELETE FROM "ProductCatalogEntry" WHERE "id" = ?`, productId);
+  await prisma.$executeRaw(Prisma.sql`DELETE FROM "ProductCatalogEntry" WHERE "id" = ${productId}`);
 }
