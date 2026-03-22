@@ -103,7 +103,18 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
                   <td>{row.category}</td>
                   <td>{row.product || "-"}</td>
                   <td>{row.description || "-"}</td>
-                  {shouldShowPrices && <td className="text-right font-semibold">{formatCurrency(row.salePrice, quote.currency)}</td>}
+                  {shouldShowPrices && (
+                    <td className="text-right">
+                      <div className="font-semibold text-ink-900">{formatCurrency(row.salePrice, quote.currency)}</div>
+                      {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
+                        <div className="text-[10px] text-ink-500 font-normal mt-0.5">
+                          {quote.currency === "TRY" 
+                            ? formatCurrency(row.salePrice / quote.exchangeRate, "USD") 
+                            : formatCurrency(row.salePrice * quote.exchangeRate, "TRY")}
+                        </div>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))
             )}
@@ -163,9 +174,11 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
               <span>{onlyProducts ? "Parça Genel Toplamı" : "Genel Toplam"}</span>
               <div className="text-right">
                 <strong>{formatCurrency(grandTotal, quote.currency)}</strong>
-                {quote.currency && quote.currency !== "TRY" && quote.exchangeRate && (
+                {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
                   <div className="text-xs text-ink-500 font-normal mt-1">
-                    TL Karşılığı: {formatCurrency(grandTotal * quote.exchangeRate, "TRY")}
+                    {quote.currency === "TRY" 
+                      ? `USD Karşılığı: ${formatCurrency(grandTotal / quote.exchangeRate, "USD")}`
+                      : `TL Karşılığı: ${formatCurrency(grandTotal * quote.exchangeRate, "TRY")}`}
                   </div>
                 )}
               </div>

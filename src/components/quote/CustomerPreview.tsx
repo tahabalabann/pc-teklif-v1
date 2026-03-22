@@ -72,8 +72,15 @@ export function CustomerPreview({ quote }: CustomerPreviewProps) {
                       <td className="px-4 py-3 font-medium text-ink-700">{row.category}</td>
                       <td className="px-4 py-3 text-ink-900">{row.product || "-"}</td>
                       <td className="px-4 py-3 text-ink-600">{row.description || "-"}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-ink-900">
-                        {formatCurrency(row.salePrice)}
+                      <td className="px-4 py-3 text-right">
+                        <div className="font-semibold text-ink-900">{formatCurrency(row.salePrice, quote.currency)}</div>
+                        {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
+                          <div className="text-[10px] text-ink-500 font-normal">
+                             {quote.currency === "TRY" 
+                               ? formatCurrency(row.salePrice / quote.exchangeRate, "USD") 
+                               : formatCurrency(row.salePrice * quote.exchangeRate, "TRY")}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))
@@ -91,15 +98,36 @@ export function CustomerPreview({ quote }: CustomerPreviewProps) {
             <div className="rounded-3xl bg-ink-900 p-5 text-white">
               <p className="text-xs uppercase tracking-[0.16em] text-brand-200">{"Fiyat \u00d6zeti"}</p>
               <div className="mt-5 space-y-3">
-                <PriceRow label={"Par\u00e7a Toplam\u0131"} value={formatCurrency(partsTotal)} />
-                <PriceRow label={"\u0130\u015f\u00e7ilik / Montaj"} value={formatCurrency(quote.labor)} />
-                <PriceRow label="Kargo" value={formatCurrency(quote.shipping)} />
-                <PriceRow label={"\u0130ndirim"} value={`-${formatCurrency(quote.discount)}`} />
+                <PriceRow 
+                  label={"Par\u00e7a Toplam\u0131"} 
+                  value={formatCurrency(partsTotal, quote.currency)} 
+                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(partsTotal / quote.exchangeRate, "USD") : formatCurrency(partsTotal * quote.exchangeRate, "TRY")) : undefined}
+                />
+                <PriceRow 
+                  label={"\u0130\u015f\u00e7ilik / Montaj"} 
+                  value={formatCurrency(quote.labor, quote.currency)} 
+                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.labor / quote.exchangeRate, "USD") : formatCurrency(quote.labor * quote.exchangeRate, "TRY")) : undefined}
+                />
+                <PriceRow 
+                  label="Kargo" 
+                  value={formatCurrency(quote.shipping, quote.currency)} 
+                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.shipping / quote.exchangeRate, "USD") : formatCurrency(quote.shipping * quote.exchangeRate, "TRY")) : undefined}
+                />
+                <PriceRow 
+                  label={"\u0130ndirim"} 
+                  value={`-${formatCurrency(quote.discount, quote.currency)}`} 
+                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(quote.discount / quote.exchangeRate, "USD") : formatCurrency(quote.discount * quote.exchangeRate, "TRY")) : undefined}
+                />
               </div>
               <div className="mt-5 border-t border-white/10 pt-5">
-                <PriceRow label="Genel Toplam" value={formatCurrency(total)} strong />
-                {quote.cashPrice > 0 && <PriceRow label="Nakit Fiyat" value={formatCurrency(quote.cashPrice)} />}
-                {quote.tradePrice > 0 && <PriceRow label={"Takas Fiyat\u0131"} value={formatCurrency(quote.tradePrice)} />}
+                <PriceRow 
+                  label="Genel Toplam" 
+                  value={formatCurrency(total, quote.currency)} 
+                  strong 
+                  secondaryValue={quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 ? (quote.currency === "TRY" ? formatCurrency(total / quote.exchangeRate, "USD") : formatCurrency(total * quote.exchangeRate, "TRY")) : undefined}
+                />
+                {quote.cashPrice > 0 && <PriceRow label="Nakit Fiyat" value={formatCurrency(quote.cashPrice, quote.currency)} />}
+                {quote.tradePrice > 0 && <PriceRow label={"Takas Fiyat\u0131"} value={formatCurrency(quote.tradePrice, quote.currency)} />}
               </div>
             </div>
           </div>
@@ -118,11 +146,28 @@ function InfoBlock({ title, value }: { title: string; value: string }) {
   );
 }
 
-function PriceRow({ label, value, strong = false }: { label: string; value: string; strong?: boolean }) {
+function PriceRow({ 
+  label, 
+  value, 
+  strong = false,
+  secondaryValue 
+}: { 
+  label: string; 
+  value: string; 
+  strong?: boolean;
+  secondaryValue?: string;
+}) {
   return (
-    <div className={`flex items-center justify-between gap-3 ${strong ? "text-lg font-bold" : "text-sm"}`}>
-      <span className={strong ? "text-white" : "text-brand-100"}>{label}</span>
-      <span className="text-white">{value}</span>
+    <div className="space-y-0.5">
+      <div className={`flex items-center justify-between gap-3 ${strong ? "text-lg font-bold" : "text-sm"}`}>
+        <span className={strong ? "text-white" : "text-brand-100"}>{label}</span>
+        <span className="text-white">{value}</span>
+      </div>
+      {secondaryValue && (
+        <div className="text-right text-[11px] text-brand-300 font-medium">
+          {secondaryValue}
+        </div>
+      )}
     </div>
   );
 }

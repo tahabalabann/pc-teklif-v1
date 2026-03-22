@@ -44,9 +44,11 @@ export function PricingSummary({ quote, onNumberChange, compact = false }: Prici
         <div className="rounded-2xl bg-brand-50 px-4 py-3 text-right">
           <p className="text-xs uppercase tracking-[0.14em] text-brand-600">Genel Toplam</p>
           <p className="mt-1 text-2xl font-bold text-ink-900">{formatCurrency(grandTotal, quote.currency)}</p>
-          {quote.currency && quote.currency !== "TRY" && quote.exchangeRate && (
+          {quote.exchangeRate && quote.exchangeRate > 0 && quote.exchangeRate !== 1 && (
             <p className="mt-1 text-xs text-brand-700 font-medium whitespace-nowrap">
-              TL Karşılığı: {formatCurrency(grandTotal * quote.exchangeRate, "TRY")}
+              {quote.currency === "TRY"
+                ? `USD Karşılığı: ${formatCurrency(grandTotal / quote.exchangeRate, "USD")}`
+                : `TL Karşılığı: ${formatCurrency(grandTotal * quote.exchangeRate, "TRY")}`}
             </p>
           )}
         </div>

@@ -106,7 +106,7 @@ export function QuoteWorkspacePage({
               onChange={async (event) => {
                 const currency = event.target.value as "TRY" | "USD" | "EUR" | "GBP";
                 if (currency === "TRY") {
-                  onPatchQuote({ currency, exchangeRate: 1 });
+                  onPatchQuote({ currency });
                   return;
                 }
                 const toastId = toast.loading("Güncel kur çekiliyor...");
@@ -125,8 +125,17 @@ export function QuoteWorkspacePage({
               <option value="EUR">EUR (€)</option>
               <option value="GBP">GBP (£)</option>
             </select>
-            {activeQuote.currency !== "TRY" && (
-              <span className="text-xs text-ink-500 font-medium">Kur: {activeQuote.exchangeRate}</span>
+            {(activeQuote.exchangeRate ?? 0) > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-ink-500 font-medium">Kur:</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  className="field py-1 px-2 w-24 text-xs"
+                  value={activeQuote.exchangeRate ?? 1}
+                  onChange={(e) => onPatchQuote({ exchangeRate: parseFloat(e.target.value) || 0 })}
+                />
+              </div>
             )}
           </div>
 
