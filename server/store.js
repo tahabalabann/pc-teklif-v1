@@ -838,7 +838,7 @@ export async function getDashboardSummaryForUser(user) {
         SELECT COUNT(*) AS "count"
         FROM "User"
         WHERE "companyId" = ${user.companyId}
-          AND COALESCE("isActive", 1) = 1
+          AND COALESCE("isActive", true) = true
           AND "role" != 'admin'
           AND COALESCE("balance", 0) < 150
       `,
