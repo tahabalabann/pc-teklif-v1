@@ -70,8 +70,13 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
   const [catalogItemId, setCatalogItemId] = useState("");
 
   useEffect(() => {
-    if (filteredCatalog.length > 0 && !catalogItemId) {
-      setCatalogItemId(filteredCatalog[0].id);
+    if (filteredCatalog.length > 0) {
+      const isCurrentValid = filteredCatalog.some(item => item.id === catalogItemId);
+      if (!isCurrentValid) {
+        setCatalogItemId(filteredCatalog[0].id);
+      }
+    } else {
+      setCatalogItemId("");
     }
   }, [filteredCatalog, catalogItemId]);
 
