@@ -84,17 +84,17 @@ export function TeamManagementPanel({ quote, onApplyCompany }: CompanyManagement
     <Card className="p-5 print:hidden">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-ink-900">Firma ve Müşteri Kayıtları</h2>
+          <h2 className="text-lg font-semibold text-ink-900">Rehber Kayıtları</h2>
           <p className="mt-1 text-sm text-ink-600">
-            Farklı firmaları, yetkili kişileri, vergi-adres bilgilerini ve etiketleri kaydedin. İsterseniz tek tıkla
+            Tedarikçileri, müşterileri ve yetkili kişileri kaydedin. İsterseniz tek tıkla
             aktif teklife uygulayın.
           </p>
         </div>
       </div>
 
       <form className="mt-5 grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
-        <input className="field" placeholder="Firma adı" value={form.companyName} onChange={(event) => setForm((prev) => ({ ...prev, companyName: event.target.value }))} />
-        <input className="field" placeholder="Yetkili kişi" value={form.contactName} onChange={(event) => setForm((prev) => ({ ...prev, contactName: event.target.value }))} />
+        <input className="field" placeholder="Firma veya Kişi Adı" value={form.companyName} onChange={(event) => setForm((prev) => ({ ...prev, companyName: event.target.value }))} />
+        <input className="field" placeholder="Yetkili / İletişim Kişisi" value={form.contactName} onChange={(event) => setForm((prev) => ({ ...prev, contactName: event.target.value }))} />
         <select className="field" value={form.category || "Kurumsal"} onChange={(event) => setForm((prev) => ({ ...prev, category: event.target.value }))}>
           {categories.filter((item) => item !== "Tümü").map((item) => (
             <option key={item} value={item}>
@@ -110,14 +110,14 @@ export function TeamManagementPanel({ quote, onApplyCompany }: CompanyManagement
         <textarea className="field min-h-[96px] md:col-span-2" placeholder="Adres" value={form.address} onChange={(event) => setForm((prev) => ({ ...prev, address: event.target.value }))} />
         <textarea className="field min-h-[96px] md:col-span-2" placeholder="Notlar" value={form.notes} onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))} />
         <Button className="md:col-span-2" type="submit" variant="primary">
-          Firma Kaydet
+          Kaydı Kaydet
         </Button>
       </form>
 
       {error && <div className="mt-4 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_180px]">
-        <input className="field" placeholder="Firma ara" value={search} onChange={(event) => setSearch(event.target.value)} />
+        <input className="field" placeholder="Kayıtlarda ara..." value={search} onChange={(event) => setSearch(event.target.value)} />
         <select className="field" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value as (typeof categories)[number])}>
           {categories.map((item) => (
             <option key={item} value={item}>
@@ -130,7 +130,7 @@ export function TeamManagementPanel({ quote, onApplyCompany }: CompanyManagement
       <div className="mt-5 space-y-3">
         {filteredCompanies.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-ink-300 px-4 py-6 text-sm text-ink-500">
-            Henüz firma kaydı yok.
+            Henüz kayıt yok.
           </div>
         ) : (
           filteredCompanies.map((company) => (

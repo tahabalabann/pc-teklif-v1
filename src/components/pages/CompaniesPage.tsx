@@ -24,10 +24,10 @@ export function CompaniesPage({ quote, quotes, onApplyCompany, onOpenQuote }: Co
   return (
     <div className="space-y-6">
       <Card className="p-5">
-        <p className="text-xs uppercase tracking-[0.16em] text-ink-500">Firmalar / Yönetim</p>
-        <h2 className="mt-2 text-lg font-semibold text-ink-900">Firma Yönetimi</h2>
+        <p className="text-xs uppercase tracking-[0.16em] text-ink-500">Adres Defteri / Rehber</p>
+        <h2 className="mt-2 text-lg font-semibold text-ink-900">Adres Defteri</h2>
         <p className="mt-1 text-sm text-ink-600">
-          Cari benzeri firma kayıtlarını yönetin, vergi ve iletişim bilgilerini saklayın, gerektiğinde aktif teklife tek tıkla uygulayın.
+          Tedarikçilerinizi, müşterilerinizi ve iş ortaklarınızı kaydedin. İletişim ve vergi bilgilerini saklayın, tekliflerinize hızla uygulayın.
         </p>
       </Card>
 
@@ -57,7 +57,7 @@ export function CompaniesPage({ quote, quotes, onApplyCompany, onOpenQuote }: Co
           <Card className="p-5">
             <h3 className="text-base font-semibold text-ink-900">Son Teklifler</h3>
             <p className="mt-1 text-sm text-ink-600">
-              Aktif firmayla ilişkilendirilen son teklifler burada görünür.
+              Bu kişi veya firmayla ilişkilendirilen son teklifler burada görünür.
             </p>
 
             {relatedQuotes.length === 0 ? (

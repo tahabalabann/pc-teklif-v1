@@ -25,7 +25,7 @@ const routes: Array<{
   { id: "dashboard", label: "Dashboard", allowedRoles: ["admin"] },
   { id: "quotes", label: "Teklifler", allowedRoles: ["admin", "staff", "operations", "sales"] },
   { id: "shipping", label: "Kargo", allowedRoles: ["admin", "staff", "operations", "shipping"] },
-  { id: "companies", label: "Firmalar", allowedRoles: ["admin", "staff", "operations", "sales", "shipping", "accounting"] },
+  { id: "companies", label: "Adres Defteri", allowedRoles: ["admin", "staff", "operations", "sales", "shipping", "accounting"] },
   { id: "products", label: "Ürünler", allowedRoles: ["admin", "staff", "operations", "sales"] },
   { id: "accounting", label: "Muhasebe", allowedRoles: ["admin", "accounting"] },
   { id: "settings", label: "Ayarlar", allowedRoles: ["admin"] },
