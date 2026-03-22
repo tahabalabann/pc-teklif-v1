@@ -16,7 +16,7 @@ import { walletRouter } from "./routes/wallet.routes.js";
 import { quotesRouter, publicQuotesRouter } from "./routes/quotes.routes.js";
 import { addressRouter, senderAddressRouter } from "./routes/address.routes.js";
 import { companiesRouter } from "./routes/companies.routes.js";
-import shippingRouter from "./routes/shipping.routes.js";
+import { shippingRouter } from "./routes/shipping.routes.js";
 import notificationRouter from "./routes/notifications.routes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
 
