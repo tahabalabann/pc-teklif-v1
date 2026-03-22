@@ -13,28 +13,25 @@ ratesRouter.get("/", requireAuth, async (req, res) => {
       return res.json({ rates: cachedRates });
     }
     
-    const response = await fetch("https://www.tcmb.gov.tr/kurlar/today.xml");
-    const xml = await response.text();
+    const response = await fetch("https://api.frankfurter.dev/v1/latest?base=TRY&symbols=USD,EUR,GBP");
+    const data = await response.json();
     
-    const extractAnyRate = (currencyCode) => {
-      const blockRegex = new RegExp(`<Currency[^>]*CurrencyCode="${currencyCode}"[^>]*>([\\s\\S]*?)</Currency>`, 'i');
-      const blockMatch = xml.match(blockRegex);
-      if (!blockMatch) return null;
-      const rateMatch = blockMatch[1].match(/<(BanknoteSelling|ForexSelling)>([\\d\\.]+)/i);
-      return rateMatch ? parseFloat(rateMatch[2]) : null;
-    };
+    if (!data || !data.rates) {
+      throw new Error("API hatası");
+    }
 
     const rates = {
       TRY: 1,
-      USD: extractAnyRate("USD") || 34.00,
-      EUR: extractAnyRate("EUR") || 37.00,
-      GBP: extractAnyRate("GBP") || 44.00,
+      USD: data.rates.USD ? 1 / data.rates.USD : 34.00,
+      EUR: data.rates.EUR ? 1 / data.rates.EUR : 37.00,
+      GBP: data.rates.GBP ? 1 / data.rates.GBP : 44.00,
     };
     
     cachedRates = rates;
     lastRatesFetch = now;
     return res.json({ rates });
   } catch (error) {
+    console.error("Rates error:", error);
     return res.status(500).json({ error: "Kurlar çekilemedi" });
   }
 });
