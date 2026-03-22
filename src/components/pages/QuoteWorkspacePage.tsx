@@ -131,22 +131,21 @@ export function QuoteWorkspacePage({
                 <input
                   type="number"
                   step="0.0001"
-                  className="w-20 bg-transparent border-none text-sm font-bold text-ink-900 focus:ring-0 p-1"
+                  readOnly
+                  className="w-20 bg-transparent border-none text-sm font-bold text-ink-900 focus:ring-0 p-1 cursor-not-allowed"
                   value={activeQuote.exchangeRate ?? 1}
-                  onChange={(e) => onPatchQuote({ exchangeRate: parseFloat(e.target.value) || 0 })}
                 />
                 <button
                   type="button"
                   title="Kuru TCMB'den Güncelle"
                   className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-400 hover:text-orange-500 transition-colors"
                   onClick={async () => {
-                    const currency = activeQuote.currency;
-                    if (!currency || currency === "TRY") return;
-                    const toastId = toast.loading("Merkez Bankası'ndan kur çekiliyor...");
+                    if (activeQuote.currency === "TRY") return;
+                    const toastId = toast.loading("Merkez Bankası'ndan kurlar çekiliyor...");
                     try {
-                      const rates = await ratesApi.getRates();
-                      onPatchQuote({ exchangeRate: rates[currency as keyof typeof rates] || activeQuote.exchangeRate });
-                      toast.success("Kur başarıyla güncellendi", { id: toastId });
+                      const { useAppStore } = await import("../../store/useAppStore");
+                      await useAppStore.getState().fetchRates();
+                      toast.success("Kurlar başarıyla güncellendi", { id: toastId });
                     } catch (error) {
                       toast.error("Kur alınamadı", { id: toastId });
                     }

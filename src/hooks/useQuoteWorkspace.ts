@@ -220,6 +220,15 @@ export function useQuoteWorkspace(
     }
   }, [activeQuote, user]);
 
+  // Auto-sync exchange rate from global rates store
+  useEffect(() => {
+    if (!rates || activeQuote.currency === "TRY") return;
+    const globalRate = rates[activeQuote.currency as keyof typeof rates];
+    if (globalRate && activeQuote.exchangeRate !== globalRate) {
+      patchQuote({ exchangeRate: globalRate });
+    }
+  }, [rates, activeQuote.currency, activeQuote.exchangeRate, patchQuote]);
+
   useEffect(() => {
     if (!user) return;
     const serializedQuote = JSON.stringify(activeQuote);
