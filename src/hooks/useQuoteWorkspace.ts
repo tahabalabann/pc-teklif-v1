@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import toast from "react-hot-toast";
 import { quotesApi } from "../utils/api";
-import { useQuoteStore } from "../store/useAppStore";
+import { useQuoteStore, useAppStore } from "../store/useAppStore";
 import type { 
   Quote, 
   AppUser, 
@@ -97,14 +97,23 @@ export function useQuoteWorkspace(
     }
   };
 
+  const rates = useAppStore((state) => state.rates);
+
   const handleNewQuote = useCallback(() => {
     if (!user) return;
     skipAutoSaveRef.current = true;
     resetSaveIndicators();
-    setCurrentQuote(createDefaultQuote(user, companySettings));
+    const defaultQuote = createDefaultQuote(user, companySettings);
+    
+    // Inject current rates if available
+    if (rates && defaultQuote.currency && defaultQuote.currency !== "TRY") {
+      defaultQuote.exchangeRate = rates[defaultQuote.currency as keyof typeof rates] || 1;
+    }
+    
+    setCurrentQuote(defaultQuote);
     setRoute("quote-detail");
     toast.success("Yeni teklif taslaği oluşturuldu");
-  }, [user, companySettings, setCurrentQuote, setRoute, resetSaveIndicators]);
+  }, [user, companySettings, setCurrentQuote, setRoute, rates, resetSaveIndicators]);
 
   const handleResetQuote = useCallback(() => {
     if (!user) return;

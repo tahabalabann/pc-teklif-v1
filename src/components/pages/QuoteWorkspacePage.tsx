@@ -126,15 +126,34 @@ export function QuoteWorkspacePage({
               <option value="GBP">GBP (£)</option>
             </select>
             {(activeQuote.exchangeRate ?? 0) > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-ink-500 font-medium">Kur:</span>
+              <div className="flex items-center gap-1.5 bg-white ring-1 ring-ink-200 p-1 rounded-xl">
+                <span className="text-[10px] uppercase font-bold text-ink-400 ml-2 tracking-widest">Kur</span>
                 <input
                   type="number"
                   step="0.0001"
-                  className="field py-1 px-2 w-24 text-xs"
+                  className="w-20 bg-transparent border-none text-sm font-bold text-ink-900 focus:ring-0 p-1"
                   value={activeQuote.exchangeRate ?? 1}
                   onChange={(e) => onPatchQuote({ exchangeRate: parseFloat(e.target.value) || 0 })}
                 />
+                <button
+                  type="button"
+                  title="Kuru TCMB'den Güncelle"
+                  className="p-1.5 hover:bg-ink-100 rounded-lg text-ink-400 hover:text-orange-500 transition-colors"
+                  onClick={async () => {
+                    const currency = activeQuote.currency;
+                    if (!currency || currency === "TRY") return;
+                    const toastId = toast.loading("Merkez Bankası'ndan kur çekiliyor...");
+                    try {
+                      const rates = await ratesApi.getRates();
+                      onPatchQuote({ exchangeRate: rates[currency as keyof typeof rates] || activeQuote.exchangeRate });
+                      toast.success("Kur başarıyla güncellendi", { id: toastId });
+                    } catch (error) {
+                      toast.error("Kur alınamadı", { id: toastId });
+                    }
+                  }}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                </button>
               </div>
             )}
           </div>

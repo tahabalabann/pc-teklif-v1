@@ -8,10 +8,13 @@ interface AppState {
   theme: "light" | "dark";
   route: string;
   isMobileMenuOpen: boolean;
+  rates: { TRY: number; USD: number; EUR: number; GBP: number } | null;
   setSession: (session: { token: string; user: AppUser } | null) => void;
   setTheme: (theme: "light" | "dark") => void;
   setRoute: (route: string) => void;
   setMobileMenuOpen: (isOpen: boolean) => void;
+  setRates: (rates: { TRY: number; USD: number; EUR: number; GBP: number } | null) => void;
+  fetchRates: () => Promise<void>;
   logout: () => void;
   initRealtime: () => void;
 }
@@ -23,10 +26,21 @@ export const useAppStore = create<AppState>()(
       theme: "light",
       route: "quotes",
       isMobileMenuOpen: false,
+      rates: null,
       setSession: (session) => set({ session }),
       setTheme: (theme) => set({ theme }),
       setRoute: (route) => set({ route, isMobileMenuOpen: false }),
       setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen }),
+      setRates: (rates) => set({ rates }),
+      fetchRates: async () => {
+        try {
+          const { ratesApi } = await import("../utils/api");
+          const rates = await ratesApi.getRates();
+          set({ rates });
+        } catch (error) {
+          console.error("Rates fetch error", error);
+        }
+      },
       logout: () => set({ session: null, route: "quotes" }),
       initRealtime: () => {
         const token = window.localStorage.getItem("pc-teklif:sessionToken");

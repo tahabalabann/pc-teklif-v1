@@ -8,9 +8,12 @@ export function useAuth() {
   const setSession = useAppStore((state) => state.setSession);
   const initRealtime = useAppStore((state) => state.initRealtime);
 
+  const fetchRates = useAppStore((state) => state.fetchRates);
+
   const handleLogin = async (email: string, password: string) => {
     const nextSession = await authApi.login(email, password);
     setSession(nextSession);
+    void fetchRates();
   };
 
   const handleLogout = useCallback(async () => {
@@ -32,10 +35,13 @@ export function useAuth() {
 
     void authApi
       .getSession()
-      .then((nextSession) => setSession(nextSession))
+      .then((nextSession) => {
+        setSession(nextSession);
+        void fetchRates();
+      })
       .catch(() => sessionStorageApi.clearToken())
       .finally(() => setIsBooting(false));
-  }, [setSession]);
+  }, [setSession, fetchRates]);
 
   // Real-time connection management
   useEffect(() => {
