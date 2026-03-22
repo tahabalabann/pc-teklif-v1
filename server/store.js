@@ -7,6 +7,8 @@ const ownerScopedTables = new Set([
   "SenderAddressBookEntry",
   "CompanyDirectoryEntry",
   "ShipmentRecord",
+  "ProductCatalogEntry",
+  "Notification",
 ]);
 
 export function hashPassword(password, salt = randomUUID()) {
