@@ -7,6 +7,7 @@ import {
   rejectDepositRequestForUser
 } from "../store.js";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware.js";
+import { eventBus } from "../utils/EventBus.js";
 
 export const walletRouter = Router();
 
@@ -38,6 +39,7 @@ walletRouter.post("/deposit-requests", requireAuth, async (req, res) => {
       amount: req.body?.amount,
       note: req.body?.note,
     });
+    eventBus.broadcast("deposit_request_created", { request });
     return res.status(201).json({ request });
   } catch (error) {
     return res.status(400).json({
@@ -49,6 +51,7 @@ walletRouter.post("/deposit-requests", requireAuth, async (req, res) => {
 walletRouter.post("/deposit-requests/:id/approve", requireAuth, requireAdmin, async (req, res) => {
   try {
     const result = await approveDepositRequestForUser(req.user, req.params.id);
+    eventBus.broadcast("deposit_request_approved", { userId: result.user.id, amount: result.user.balance });
     return res.json(result);
   } catch (error) {
     return res.status(400).json({

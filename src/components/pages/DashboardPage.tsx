@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { motion } from "framer-motion";
+import * as XLSX from "xlsx";
 import type { AppUser, AuditLogEntry, CompanyReportSummary, DashboardSummary, WalletLedgerEntry } from "../../types/quote";
 import { reportsApi } from "../../utils/api";
+import { toast } from "react-hot-toast";
 import { formatDateTime } from "../../utils/date";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
@@ -69,6 +72,25 @@ export function DashboardPage() {
     }
   };
 
+  const exportToExcel = () => {
+    const data = companyReports.map(report => ({
+      "Firma Adı": report.companyName,
+      "Durum": report.active ? "Aktif" : "Pasif",
+      "Kullanıcı Sayısı": report.userCount,
+      "Toplam Teklif": report.totalQuotes,
+      "Toplam Kargo": report.totalShipments,
+      "Toplam Yükleme": report.totalDeposits,
+      "Toplam Kâr": report.totalProfit,
+      "Ort. Kargo Maliyeti": report.averageShippingCost
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Firma Raporları");
+    XLSX.writeFile(workbook, `Firma_Raporu_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success("Excel raporu indiriliyor...");
+  };
+
   useEffect(() => {
     void loadDashboard();
   }, []);
@@ -102,40 +124,68 @@ export function DashboardPage() {
 
   const selectedUser = users.find((user) => user.id === selectedUserId);
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 }
+  };
+
   return (
-    <div className="space-y-6">
-      <Card className="p-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Dashboard</p>
-            <h2 className="mt-2 text-2xl font-semibold text-ink-900">Günlük operasyon özeti</h2>
-            <p className="mt-2 max-w-3xl text-sm text-ink-600">
-              Teklif, kargo, bakiye ve firma verilerini tek ekrandan takip edin. Bu alan yönetici
-              kullanımına yöneliktir.
-            </p>
+    <motion.div 
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+      className="space-y-6"
+    >
+      <motion.div variants={itemVariants}>
+        <Card className="p-6">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Dashboard</p>
+              <h2 className="mt-2 text-2xl font-semibold text-ink-900">Günlük operasyon özeti</h2>
+              <p className="mt-2 max-w-3xl text-sm text-ink-600">
+                Teklif, kargo, bakiye ve firma verilerini tek ekrandan takip edin. Bu alan yönetici
+                kullanımına yöneliktir.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={exportToExcel} type="button" variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                Excel Dışa Aktar
+              </Button>
+              <Button onClick={() => void loadDashboard()} type="button" variant="secondary">
+                Yenile
+              </Button>
+            </div>
           </div>
-          <Button onClick={() => void loadDashboard()} type="button" variant="secondary">
-            Yenile
-          </Button>
-        </div>
 
-        {error && <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
+          {error && <div className="mt-5 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Bugün Verilen Teklif" value={String(summary.todayQuotes)} />
-          <MetricCard label="Bugün Üretilen Kargo" value={String(summary.todayShipments)} />
-          <MetricCard label="Bekleyen Bakiye Talebi" value={String(summary.pendingDepositRequests)} />
-          <MetricCard
-            label="Düşük Bakiyeli Kullanıcı"
-            tone={summary.lowBalanceUsers > 0 ? "warning" : "neutral"}
-            value={String(summary.lowBalanceUsers)}
-          />
-        </div>
-      </Card>
+          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <MetricCard delay={0.1} label="Bugün Verilen Teklif" value={String(summary.todayQuotes)} />
+            <MetricCard delay={0.2} label="Bugün Üretilen Kargo" value={String(summary.todayShipments)} />
+            <MetricCard delay={0.3} label="Bekleyen Bakiye Talebi" value={String(summary.pendingDepositRequests)} />
+            <MetricCard
+              delay={0.4}
+              label="Düşük Bakiyeli Kullanıcı"
+              tone={summary.lowBalanceUsers > 0 ? "warning" : "neutral"}
+              value={String(summary.lowBalanceUsers)}
+            />
+          </div>
+        </Card>
+      </motion.div>
 
       {!loading && shippingAverages.length > 0 && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="p-6 h-[400px] flex flex-col">
+        <motion.div variants={itemVariants} className="grid gap-6 lg:grid-cols-2">
+          <Card className="p-6 h-[400px] flex flex-col group hover:shadow-elevated transition-shadow duration-300">
             <h3 className="text-lg font-semibold text-ink-900 mb-4">Firmalara Göre İş Hacmi</h3>
             <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
@@ -152,8 +202,8 @@ export function DashboardPage() {
             </div>
           </Card>
           
-          <Card className="p-6 h-[400px] flex flex-col">
-            <h3 className="text-lg font-semibold text-ink-900 mb-4">Kârlılık Dağılımı</h3>
+          <Card className="p-6 h-[400px] flex flex-col group hover:shadow-elevated transition-shadow duration-300">
+            <h3 className="text-lg font-semibold text-ink-900 mb-4 text-center">Kârlılık Dağılımı</h3>
             <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -178,10 +228,10 @@ export function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </Card>
-        </div>
+        </motion.div>
       )}
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      <motion.div variants={itemVariants} className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
         <Card className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -301,9 +351,9 @@ export function DashboardPage() {
             </Button>
           </form>
         </Card>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-6 xl:grid-cols-2">
+      <motion.div variants={itemVariants} className="grid gap-6 xl:grid-cols-2">
         <Card className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -367,37 +417,39 @@ export function DashboardPage() {
             ))}
           </div>
         </Card>
-      </div>
+      </motion.div>
 
-      <Card className="p-6">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Düşük Bakiye</p>
-            <h3 className="mt-2 text-xl font-semibold text-ink-900">Kritik seviyedeki kullanıcılar</h3>
+      <motion.div variants={itemVariants}>
+        <Card className="p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-500">Düşük Bakiye</p>
+              <h3 className="mt-2 text-xl font-semibold text-ink-900">Kritik seviyedeki kullanıcılar</h3>
+            </div>
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+              {lowBalanceUsers.length} kullanıcı
+            </span>
           </div>
-          <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-            {lowBalanceUsers.length} kullanıcı
-          </span>
-        </div>
 
-        {lowBalanceUsers.length === 0 ? (
-          <div className="mt-5 rounded-2xl border border-dashed border-ink-200 px-4 py-6 text-sm text-ink-500">
-            Kritik seviyede bakiye kalmadı.
-          </div>
-        ) : (
-          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {lowBalanceUsers.map((user) => (
-              <div key={user.id} className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
-                <p className="font-semibold text-ink-900">{user.name}</p>
-                <p className="mt-1 text-sm text-ink-600">{user.companyName}</p>
-                <p className="mt-2 text-sm font-semibold text-red-600">{formatCurrency(user.balance || 0)}</p>
-                <p className="mt-1 text-xs text-ink-500">{user.role}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-    </div>
+          {lowBalanceUsers.length === 0 ? (
+            <div className="mt-5 rounded-2xl border border-dashed border-ink-200 px-4 py-6 text-sm text-ink-500">
+              Kritik seviyede bakiye kalmadı.
+            </div>
+          ) : (
+            <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {lowBalanceUsers.map((user) => (
+                <div key={user.id} className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4">
+                  <p className="font-semibold text-ink-900">{user.name}</p>
+                  <p className="mt-1 text-sm text-ink-600">{user.companyName}</p>
+                  <p className="mt-2 text-sm font-semibold text-red-600">{formatCurrency(user.balance || 0)}</p>
+                  <p className="mt-1 text-xs text-ink-500">{user.role}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -405,13 +457,18 @@ function MetricCard({
   label,
   value,
   tone = "neutral",
+  delay = 0
 }: {
   label: string;
   value: string;
   tone?: "neutral" | "warning";
+  delay?: number;
 }) {
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay }}
       className={`group relative overflow-hidden rounded-2xl border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-elevated ${
         tone === "warning"
           ? "border-orange-200/50 bg-gradient-to-br from-orange-50 to-white hover:border-orange-300"
@@ -433,6 +490,6 @@ function MetricCard({
           {value}
         </p>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { toast } from "react-hot-toast";
 import type { AppUser, Quote } from "../types/quote";
 
 interface AppState {
@@ -12,6 +13,7 @@ interface AppState {
   setRoute: (route: string) => void;
   setMobileMenuOpen: (isOpen: boolean) => void;
   logout: () => void;
+  initRealtime: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -26,6 +28,35 @@ export const useAppStore = create<AppState>()(
       setRoute: (route) => set({ route, isMobileMenuOpen: false }),
       setMobileMenuOpen: (isOpen) => set({ isMobileMenuOpen: isOpen }),
       logout: () => set({ session: null, route: "quotes" }),
+      initRealtime: () => {
+        const token = window.localStorage.getItem("pc-teklif:sessionToken");
+        if (!token) return;
+
+        const eventSource = new EventSource(`/api/notifications/stream?token=${token}`);
+        
+        eventSource.onmessage = (event) => {
+          try {
+            const { type, data } = JSON.parse(event.data);
+            
+            if (type === "deposit_request_approved") {
+              const currentSession = useAppStore.getState().session;
+              if (currentSession && data.userId === currentSession.user.id) {
+                toast.success(`Bakiyeniz güncellendi: ${data.amount} ₺`);
+                set({ session: { ...currentSession, user: { ...currentSession.user, balance: data.amount } } });
+              }
+            }
+
+            if (type === "quote_status_updated") {
+               toast(`Teklif durumu güncellendi: ${data.status}`, { icon: "🔔" });
+               // Trigger a refresh in quote store if needed (this is a bit decoupled but works)
+            }
+          } catch (e) {
+            console.error("Realtime parse error", e);
+          }
+        };
+
+        return () => eventSource.close();
+      }
     }),
     {
       name: "pc-teklif-app-storage",

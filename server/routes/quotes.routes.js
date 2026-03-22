@@ -10,6 +10,7 @@ import {
   deleteProductForUser
 } from "../store.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import { eventBus } from "../utils/EventBus.js";
 
 export const quotesRouter = Router();
 
@@ -25,6 +26,7 @@ quotesRouter.put("/:id", requireAuth, async (req, res) => {
 
   try {
     const savedQuote = await saveQuoteForUser(req.user, { ...quote, id: req.params.id });
+    eventBus.broadcast("quote_saved", { quoteId: savedQuote.id, companyId: savedQuote.companyId });
     return res.json({ quote: savedQuote });
   } catch (error) {
     return res.status(400).json({
@@ -35,6 +37,7 @@ quotesRouter.put("/:id", requireAuth, async (req, res) => {
 
 quotesRouter.delete("/:id", requireAuth, async (req, res) => {
   await deleteQuoteForUser(req.user, req.params.id);
+  eventBus.broadcast("quote_deleted", { quoteId: req.params.id });
   return res.json({ ok: true });
 });
 
@@ -85,6 +88,7 @@ publicQuotesRouter.post("/:id/status", async (req, res) => {
       return res.status(400).json({ error: "Geçersiz durum." });
     }
     const quote = await updatePublicQuoteStatus(req.params.id, status);
+    eventBus.broadcast("quote_status_updated", { quoteId: quote.id, status: quote.status, companyId: quote.companyId });
     return res.json({ quote });
   } catch (error) {
     return res.status(400).json({

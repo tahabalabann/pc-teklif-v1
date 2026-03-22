@@ -10,6 +10,7 @@ import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 import { ratesApi } from "../../utils/api";
 import { toast } from "react-hot-toast";
+import { exportQuoteToPdf } from "../../utils/PdfExportUtils";
 
 interface QuoteWorkspacePageProps {
   activeQuote: Quote;
@@ -142,6 +143,9 @@ export function QuoteWorkspacePage({
 
           <Button onClick={() => void onSaveQuote()} type="button" variant="primary">
             Teklifi Kaydet
+          </Button>
+          <Button onClick={() => exportQuoteToPdf(activeQuote)} type="button" variant="secondary" className="bg-brand-50 text-brand-700 border-brand-200">
+            PDF İndir
           </Button>
           <Button onClick={onDuplicateActive} type="button" variant="secondary">
             Bu Teklifi Kopyala

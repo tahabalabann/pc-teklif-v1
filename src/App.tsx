@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { LoginScreen } from "./components/auth/LoginScreen";
 import { Header } from "./components/layout/Header";
 import { AccountingPage } from "./components/pages/AccountingPage";
@@ -42,6 +43,16 @@ function App() {
   const setTheme = useAppStore((state) => state.setTheme);
   const session = useAppStore((state) => state.session);
   const setSession = useAppStore((state) => state.setSession);
+  const initRealtime = useAppStore((state) => state.initRealtime);
+
+  useEffect(() => {
+    if (session) {
+      const cleanup = initRealtime();
+      return () => {
+        if (typeof cleanup === "function") (cleanup as any)();
+      };
+    }
+  }, [session, initRealtime]);
 
   const [showItemPricesInPrint, setShowItemPricesInPrint] = useLocalStorage<boolean>(
     "pc-teklif:showItemPricesInPrint",
@@ -476,9 +487,17 @@ function App() {
           />
         )}
 
-        <main className={`relative z-0 mx-auto animate-fade-in ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
-          <div className="space-y-6">
-            <Routes>
+        <main className={`relative z-0 mx-auto ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="space-y-6"
+            >
+              <Routes location={location}>
               <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
               <Route path="/" element={<Navigate to="/quotes" replace />} />
               
@@ -589,7 +608,8 @@ function App() {
               
               <Route path="*" element={<Navigate to="/quotes" replace />} />
             </Routes>
-          </div>
+          </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 

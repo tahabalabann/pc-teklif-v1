@@ -1,30 +1,10 @@
-import { Router } from "express";
-import {
-  listNotificationsForUser,
-  markAllNotificationsReadForUser
-} from "../store.js";
-import { requireAuth } from "../middlewares/auth.middleware.js";
+import express from "express";
+import { eventBus } from "../utils/EventBus.js";
 
-export const notificationsRouter = Router();
+const router = express.Router();
 
-notificationsRouter.get("/", requireAuth, async (req, res) => {
-  try {
-    const notifications = await listNotificationsForUser(req.user);
-    return res.json({ notifications });
-  } catch (error) {
-    return res.status(400).json({
-      error: error instanceof Error ? error.message : "Bildirimler alınamadı.",
-    });
-  }
+router.get("/stream", (req, res) => {
+  eventBus.addClient(req, res);
 });
 
-notificationsRouter.post("/read-all", requireAuth, async (req, res) => {
-  try {
-    await markAllNotificationsReadForUser(req.user);
-    return res.json({ ok: true });
-  } catch (error) {
-    return res.status(400).json({
-      error: error instanceof Error ? error.message : "Bildirimler güncellenemedi.",
-    });
-  }
-});
+export default router;
