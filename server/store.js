@@ -1320,12 +1320,20 @@ export async function getPublicQuoteById(id) {
   return JSON.parse(rows[0].data);
 }
 
-export async function updatePublicQuoteStatus(id, status) {
+export async function updatePublicQuoteStatus(id, status, customerNote = "") {
   const quote = await getPublicQuoteById(id);
   if (!quote) throw new Error("Teklif bulunamadı.");
   
+  const now = new Date().toISOString();
   quote.status = status;
-  quote.updatedAt = new Date().toISOString();
+  quote.updatedAt = now;
+  quote.customerNote = String(customerNote || "").trim();
+
+  if (status === "Onaylandı") {
+    quote.customerApprovedAt = now;
+  } else if (status === "Reddedildi") {
+    quote.customerRejectedAt = now;
+  }
   
   await prisma.$executeRaw(
     Prisma.sql`UPDATE "Quote" SET "data" = ${JSON.stringify(quote)}, "updatedAt" = ${quote.updatedAt} WHERE "id" = ${id}`

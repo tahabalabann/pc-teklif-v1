@@ -25,11 +25,13 @@ export function CustomerPortalPage() {
       .finally(() => setLoading(false));
   }, [id]);
 
+  const [customerNote, setCustomerNote] = useState("");
+
   const handleAction = async (status: "Onaylandı" | "Reddedildi") => {
     if (!quote || !id) return;
     setSubmitting(true);
     try {
-      const updated = await publicApi.updateStatus(id, status);
+      const updated = await publicApi.updateStatus(id, status, customerNote);
       setQuote(updated);
       toast.success(`Teklif başarıyla ${status.toLowerCase()}!`);
     } catch (err) {
@@ -60,52 +62,67 @@ export function CustomerPortalPage() {
   }
 
   const grandTotal = calculateGrandTotal(quote);
-  
   const isPending = quote.status !== "Onaylandı" && quote.status !== "Reddedildi";
 
   return (
-    <div className="max-w-4xl mx-auto py-8">
+    <div className="max-w-4xl mx-auto py-8 px-4 sm:px-0">
       {/* Header Info */}
-      <Card className="p-6 md:p-8 mb-6 relative overflow-hidden">
-        {quote.status === "Onaylandı" && <div className="absolute top-0 right-0 bg-green-500 text-white font-bold py-1 px-8 rounded-bl-xl shadow-sm">ONAYLANDI</div>}
-        {quote.status === "Reddedildi" && <div className="absolute top-0 right-0 bg-red-500 text-white font-bold py-1 px-8 rounded-bl-xl shadow-sm">REDDEDİLDİ</div>}
+      <Card className="p-6 md:p-8 mb-6 relative overflow-hidden border-none shadow-premium-soft">
+        {quote.status === "Onaylandı" && <div className="absolute top-0 right-0 bg-green-500 text-white font-bold py-1 px-8 rounded-bl-xl shadow-sm z-10">ONAYLANDI</div>}
+        {quote.status === "Reddedildi" && <div className="absolute top-0 right-0 bg-red-500 text-white font-bold py-1 px-8 rounded-bl-xl shadow-sm z-10">REDDEDİLDİ</div>}
 
         <div className="flex flex-col md:flex-row justify-between items-start gap-6">
           <div>
-            <h1 className="text-2xl font-bold text-ink-900 mb-2">Teklif Detayı</h1>
-            <p className="text-sm text-ink-500 font-mono">#{quote.quoteNo}</p>
+            <h1 className="text-3xl font-extrabold text-ink-900 mb-2 tracking-tight">Teklif Detayı</h1>
+            <p className="text-sm text-ink-500 font-mono bg-ink-50 px-2 py-0.5 rounded inline-block">#{quote.quoteNo}</p>
           </div>
           <div className="text-left md:text-right">
-            <p className="text-sm font-semibold text-ink-900">{quote.companyName}</p>
+            <p className="text-lg font-bold text-ink-900">{quote.companyName}</p>
             <p className="text-sm text-ink-500">{formatDisplayDate(quote.date)}</p>
           </div>
         </div>
 
-        <div className="mt-8 border-t border-ink-100 pt-6">
-          <h3 className="text-sm font-semibold text-ink-900 mb-4">Müşteri Bilgileri</h3>
-          <p className="text-ink-700 font-medium">{quote.customerName}</p>
+        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 border-t border-ink-100 pt-8">
+          <div>
+             <h3 className="text-xs font-bold text-ink-400 uppercase tracking-widest mb-3">Müşteri Bilgileri</h3>
+             <p className="text-ink-900 font-bold text-lg leading-tight">{quote.customerName}</p>
+          </div>
+          {!isPending && (quote.customerApprovedAt || quote.customerRejectedAt) && (
+             <div className="bg-ink-50 p-4 rounded-xl border border-ink-100/50">
+                <h3 className="text-xs font-bold text-ink-400 uppercase tracking-widest mb-2">İşlem Özeti</h3>
+                <p className="text-ink-700 text-sm font-medium">
+                   {quote.status === "Onaylandı" ? "Onay Tarihi: " : "Red Tarihi: "}
+                   <span className="text-ink-900 font-bold">{formatDisplayDate(quote.customerApprovedAt || quote.customerRejectedAt || "")}</span>
+                </p>
+                {quote.customerNote && (
+                   <div className="mt-3 bg-white p-3 rounded-lg border border-ink-100 italic text-ink-600 text-sm">
+                      "{quote.customerNote}"
+                   </div>
+                )}
+             </div>
+          )}
         </div>
       </Card>
 
       {/* Items Table */}
-      <Card className="overflow-hidden mb-6">
+      <Card className="overflow-hidden mb-6 border-none shadow-premium-soft">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-ink-50/50 text-ink-600">
+          <table className="w-full text-left text-sm border-collapse">
+            <thead className="bg-ink-900 text-white">
               <tr>
-                <th className="px-6 py-4 font-semibold">ÜRÜN / HİZMET</th>
-                <th className="px-6 py-4 font-semibold">AÇIKLAMA</th>
-                <th className="px-6 py-4 font-semibold text-right">TOPLAM</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">ÜRÜN / HİZMET</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs">AÇIKLAMA</th>
+                <th className="px-6 py-4 font-bold uppercase tracking-wider text-xs text-right">TOPLAM</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink-100">
               {quote.rows.map((row) => {
                 const rowTotal = Number(row.salePrice || 0);
                 return (
-                  <tr key={row.id} className="hover:bg-ink-50/30 transition-colors">
-                    <td className="px-6 py-4 font-medium text-ink-900">{row.product || "-"}</td>
-                    <td className="px-6 py-4 text-ink-600">{row.description || "-"}</td>
-                    <td className="px-6 py-4 text-right font-medium text-ink-900">{formatCurrency(rowTotal)}</td>
+                  <tr key={row.id} className="hover:bg-ink-50/50 transition-all duration-200">
+                    <td className="px-6 py-5 font-bold text-ink-900">{row.product || "-"}</td>
+                    <td className="px-6 py-5 text-ink-500">{row.description || "-"}</td>
+                    <td className="px-6 py-5 text-right font-extrabold text-ink-900">{formatCurrency(rowTotal)}</td>
                   </tr>
                 );
               })}
@@ -114,62 +131,86 @@ export function CustomerPortalPage() {
         </div>
 
         {/* Totals Section */}
-        <div className="bg-ink-50/50 px-6 py-6 border-t border-ink-100 flex flex-col items-end space-y-3">
+        <div className="bg-ink-50/30 px-6 py-8 border-t border-ink-100 flex flex-col items-end space-y-4">
           {Number(quote.shipping || 0) > 0 && (
-             <div className="w-full max-w-sm flex justify-between text-ink-600">
+             <div className="w-full max-w-sm flex justify-between text-ink-500 font-medium">
                 <span>Nakliye</span>
-                <span className="font-medium">{formatCurrency(Number(quote.shipping))}</span>
+                <span className="text-ink-900">{formatCurrency(Number(quote.shipping))}</span>
              </div>
           )}
           
           {Number(quote.labor || 0) > 0 && (
-             <div className="w-full max-w-sm flex justify-between text-ink-600">
+             <div className="w-full max-w-sm flex justify-between text-ink-500 font-medium">
                 <span>İşçilik</span>
-                <span className="font-medium">{formatCurrency(Number(quote.labor))}</span>
+                <span className="text-ink-900">{formatCurrency(Number(quote.labor))}</span>
              </div>
           )}
           
           {Number(quote.discount || 0) > 0 && (
-             <div className="w-full max-w-sm flex justify-between text-green-600">
+             <div className="w-full max-w-sm flex justify-between text-green-600 font-medium">
                 <span>İndirim</span>
-                <span className="font-medium">-{formatCurrency(Number(quote.discount))}</span>
+                <span className="font-bold">-{formatCurrency(Number(quote.discount))}</span>
              </div>
           )}
 
-          <div className="w-full max-w-sm flex justify-between text-ink-900 text-lg font-bold border-t border-ink-200/60 pt-3 mt-1">
-            <span>GENEL TOPLAM</span>
-            <span className="text-orange-600">{formatCurrency(grandTotal)}</span>
+          <div className="w-full max-w-sm flex justify-between text-ink-900 text-2xl font-black border-t-2 border-orange-500/20 pt-5 mt-2">
+            <span className="tracking-tight">TOPLAM</span>
+            <span className="text-orange-600 tracking-tighter">{formatCurrency(grandTotal)}</span>
           </div>
         </div>
       </Card>
 
       {/* Action Buttons */}
       {isPending ? (
-        <Card className="p-8 text-center bg-white shadow-elevated border-orange-100">
-          <h3 className="text-xl font-bold text-ink-900 mb-2">Onay Bekleniyor</h3>
-          <p className="text-ink-600 mb-6">Lütfen yukarıdaki detayları inceleyip teklif için aksiyon alın.</p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Button
-              variant="danger"
-              className="px-8 py-3 text-lg"
-              onClick={() => handleAction("Reddedildi")}
-              disabled={submitting}
-            >
-              Teklifi Reddet
-            </Button>
-            <Button
-              variant="primary"
-              className="px-12 py-3 text-lg bg-green-500 hover:bg-green-600 text-white shadow-green-500/25"
-              onClick={() => handleAction("Onaylandı")}
-              disabled={submitting}
-            >
-              TEKLİFİ ONAYLA
-            </Button>
+        <Card className="p-8 sm:p-12 text-center bg-white shadow-premium-elevated border-2 border-orange-500/10">
+          <div className="max-w-xl mx-auto">
+            <h3 className="text-2xl font-black text-ink-900 mb-4 tracking-tight uppercase">Teklif Onayı Bekleniyor</h3>
+            <p className="text-ink-500 mb-8 leading-relaxed">
+              Lütfen yukarıdaki detayları inceleyin. Teklifi onaylarken veya reddederken 
+              bir not bırakabilirsiniz.
+            </p>
+
+            <div className="mb-8 text-left">
+              <label className="block text-xs font-bold text-ink-400 uppercase tracking-widest mb-2 ml-1">İşlem Notu (Opsiyonel)</label>
+              <textarea 
+                className="w-full h-32 p-4 rounded-xl border border-ink-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all outline-none resize-none text-ink-900 font-medium"
+                placeholder="Örn: Ödeme haftaya Pazartesi yapılacak, kargo tarihini teyit eder misiniz?"
+                value={customerNote}
+                onChange={(e) => setCustomerNote(e.target.value)}
+              />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row justify-center gap-4">
+              <Button
+                variant="danger"
+                className="px-8 py-4 text-lg font-bold rounded-xl shadow-lg shadow-red-500/10 active:scale-95 transition-transform"
+                onClick={() => handleAction("Reddedildi")}
+                disabled={submitting}
+              >
+                Teklifi Reddet
+              </Button>
+              <Button
+                variant="primary"
+                className="px-16 py-4 text-lg font-black rounded-xl bg-green-500 hover:bg-green-600 shadow-xl shadow-green-500/20 active:scale-95 transition-transform border-none"
+                onClick={() => handleAction("Onaylandı")}
+                disabled={submitting}
+              >
+                ŞİMDİ ONAYLA
+              </Button>
+            </div>
           </div>
         </Card>
       ) : (
-        <div className="text-center py-8">
-           <p className="text-ink-500 text-sm">Bu teklif {quote.status.toLowerCase()} ve mühürlendi.</p>
+        <div className="text-center py-12 bg-white/50 rounded-3xl border border-ink-100 backdrop-blur-sm shadow-premium-soft">
+           <div className={`inline-flex items-center justify-center p-3 rounded-full mb-4 ${quote.status === "Onaylandı" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}>
+             {quote.status === "Onaylandı" ? (
+               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+             ) : (
+               <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+             )}
+           </div>
+           <p className="text-ink-900 font-bold text-xl mb-1">Teklif İşlendi</p>
+           <p className="text-ink-500">Bu teklif başarılı bir şekilde <strong>{quote.status.toLowerCase()}</strong> olarak işaretlendi. Teşekkür ederiz.</p>
         </div>
       )}
     </div>

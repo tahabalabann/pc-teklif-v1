@@ -93,11 +93,11 @@ publicQuotesRouter.get("/:id", async (req, res) => {
 
 publicQuotesRouter.post("/:id/status", async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, customerNote } = req.body;
     if (status !== "Onaylandı" && status !== "Reddedildi") {
       return res.status(400).json({ error: "Geçersiz durum." });
     }
-    const quote = await updatePublicQuoteStatus(req.params.id, status);
+    const quote = await updatePublicQuoteStatus(req.params.id, status, customerNote);
     eventBus.broadcast("quote_status_updated", { quoteId: quote.id, status: quote.status, companyId: quote.companyId });
     return res.json({ quote });
   } catch (error) {

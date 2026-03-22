@@ -116,6 +116,9 @@ export interface Quote {
   geliverProviderServiceCode: string;
   geliverSourceIdentifier: string;
   geliverShipment: GeliverShipment | null;
+  customerNote?: string;
+  customerApprovedAt?: string;
+  customerRejectedAt?: string;
   createdAt: string;
   updatedAt: string;
 }
