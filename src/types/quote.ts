@@ -17,6 +17,7 @@ export interface QuoteRow {
   description: string;
   purchasePrice: number;
   salePrice: number;
+  imageUrl?: string;
 }
 
 export interface GeliverRecipientAddress {
@@ -100,6 +101,7 @@ export interface Quote {
   sellerInfo: string;
   companyName: string;
   companyLogo: string;
+  quoteImage?: string;
   rows: QuoteRow[];
   labor: number;
   shipping: number;

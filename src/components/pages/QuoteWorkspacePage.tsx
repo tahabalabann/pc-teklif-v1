@@ -16,8 +16,10 @@ interface QuoteWorkspacePageProps {
   activeQuote: Quote;
   templates: QuoteTemplate[];
   showItemPricesInPrint: boolean;
+  showImagesInPrint: boolean;
   printTemplate: PrintTemplateMode;
   onShowItemPricesChange: (checked: boolean) => void;
+  onShowImagesInPrintChange: (checked: boolean) => void;
   onPrintTemplateChange: (template: PrintTemplateMode) => void;
   onPatchQuote: (patch: Partial<Quote>) => void;
   onSaveQuote: () => void | Promise<void>;
@@ -34,8 +36,10 @@ export function QuoteWorkspacePage({
   activeQuote,
   templates,
   showItemPricesInPrint,
+  showImagesInPrint,
   printTemplate,
   onShowItemPricesChange,
+  onShowImagesInPrintChange,
   onPrintTemplateChange,
   onPatchQuote,
   onSaveQuote,
@@ -97,6 +101,15 @@ export function QuoteWorkspacePage({
               type="checkbox"
             />
             <span>PDF'de parca fiyatlarini tek tek goster</span>
+          </label>
+          <label className="inline-flex items-center gap-2 rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-ink-700 ring-1 ring-inset ring-ink-200 dark-chip">
+            <input
+              checked={showImagesInPrint}
+              className="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500"
+              onChange={(event) => onShowImagesInPrintChange(event.target.checked)}
+              type="checkbox"
+            />
+            <span>PDF'de görselleri göster</span>
           </label>
 
           <div className="flex gap-2 items-center">
@@ -171,7 +184,7 @@ export function QuoteWorkspacePage({
           <Button onClick={() => void onSaveQuote()} type="button" variant="primary">
             Teklifi Kaydet
           </Button>
-          <Button onClick={() => exportQuoteToPdf(activeQuote)} type="button" variant="secondary" className="bg-brand-50 text-brand-700 border-brand-200">
+          <Button onClick={() => exportQuoteToPdf(activeQuote, { showImages: showImagesInPrint })} type="button" variant="secondary" className="bg-brand-50 text-brand-700 border-brand-200">
             PDF İndir
           </Button>
           <Button onClick={onDuplicateActive} type="button" variant="secondary">

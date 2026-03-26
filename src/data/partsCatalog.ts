@@ -8,6 +8,7 @@ export interface CatalogPartItem {
   salePrice: number;
   lastPurchaseNote?: string;
   lastSaleNote?: string;
+  imageUrl?: string;
 }
 
 const getCpuSpecs = (product: string) => {

@@ -69,6 +69,7 @@ function App() {
 
   // UI Settings
   const [showItemPricesInPrint, setShowItemPricesInPrint] = useLocalStorage<boolean>("pc-teklif:showItemPricesInPrint", true);
+  const [showImagesInPrint, setShowImagesInPrint] = useLocalStorage<boolean>("pc-teklif:showImagesInPrint", true);
   const [printTemplate, setPrintTemplate] = useLocalStorage<PrintTemplateMode>("pc-teklif:printTemplate", "standard");
 
   const saveStatusText = useMemo(() => {
@@ -174,6 +175,8 @@ function App() {
                       saveStatusText={saveStatusText}
                       saveStatusTone={autoSaveState === "error" ? "error" : "normal"}
                       showItemPricesInPrint={showItemPricesInPrint}
+                      showImagesInPrint={showImagesInPrint}
+                      onShowImagesInPrintChange={setShowImagesInPrint}
                       templates={defaultTemplates}
                     />
                   ) : <Navigate to="/quotes" replace />
@@ -246,6 +249,7 @@ function App() {
           printTemplate={printTemplate}
           quote={activeQuote}
           showItemPrices={showItemPricesInPrint}
+          showImages={showImagesInPrint}
         />
       </div>
     </div>

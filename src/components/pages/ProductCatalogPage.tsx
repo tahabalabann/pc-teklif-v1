@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
 import type { CatalogProduct } from "../../utils/api";
-import { productsApi } from "../../utils/api";
+import { productsApi, uploadApi } from "../../utils/api";
 import { formatCurrency } from "../../utils/money";
 import { DEFAULT_ROW_CATEGORIES } from "../../utils/quote";
 import { Button } from "../ui/Button";
@@ -24,7 +24,9 @@ export function ProductCatalogPage() {
     description: "",
     purchasePrice: "",
     salePrice: "",
+    imageUrl: "",
   });
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -51,6 +53,7 @@ export function ProductCatalogPage() {
       description: "",
       purchasePrice: "",
       salePrice: "",
+      imageUrl: "",
     });
     setIsModalOpen(true);
   };
@@ -63,6 +66,7 @@ export function ProductCatalogPage() {
       description: product.description || "",
       purchasePrice: String(product.purchasePrice || 0),
       salePrice: String(product.salePrice || 0),
+      imageUrl: product.imageUrl || "",
     });
     setIsModalOpen(true);
   };
@@ -93,6 +97,7 @@ export function ProductCatalogPage() {
         description: formData.description,
         purchasePrice: Number(formData.purchasePrice) || 0,
         salePrice: Number(formData.salePrice) || 0,
+        imageUrl: formData.imageUrl,
       };
       const saved = await productsApi.save(payload);
       if (editingId) {
@@ -106,6 +111,37 @@ export function ProductCatalogPage() {
       toast.error("Kaydetme işlemi başarısız oldu.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result as string;
+          const url = await uploadApi.uploadImage(base64, file.name);
+          setFormData((prev) => ({ ...prev, imageUrl: url }));
+          toast.success("Fotoğraf yüklendi.");
+        } catch (error) {
+          toast.error("Fotoğraf yüklenemedi.");
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error("Dosya okunamadı.");
+      setUploadingImage(false);
     }
   };
 
@@ -159,6 +195,7 @@ export function ProductCatalogPage() {
             <thead className="bg-ink-50/50 text-ink-500 font-medium">
               <tr>
                 <th className="px-6 py-4">KATEGORİ</th>
+                <th className="px-6 py-4 w-12 text-center">GÖRSEL</th>
                 <th className="px-6 py-4">ÜRÜN / MODEL</th>
                 <th className="px-6 py-4 text-right">ALIŞ FİYATI</th>
                 <th className="px-6 py-4 text-right">SATIŞ FİYATI</th>
@@ -182,6 +219,15 @@ export function ProductCatalogPage() {
                 filtered.map((item) => (
                   <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
                     <td className="px-6 py-4 text-ink-600 font-medium">{item.category}</td>
+                    <td className="px-6 py-4 text-center">
+                      {item.imageUrl ? (
+                        <img src={item.imageUrl} alt={item.name} className="h-10 w-10 object-cover rounded shadow-sm border border-ink-200 mx-auto" />
+                      ) : (
+                        <div className="h-10 w-10 bg-ink-100 rounded flex items-center justify-center text-ink-400 mx-auto text-xs">
+                          Yok
+                        </div>
+                      )}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-ink-900 font-medium">{item.name}</div>
                       {item.description && <div className="text-ink-500 text-xs mt-1">{item.description}</div>}
@@ -240,6 +286,29 @@ export function ProductCatalogPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               />
             </label>
+            <div className="block">
+              <span className="mb-2 block text-sm font-medium">Ürün Görseli (Opsiyonel)</span>
+              <div className="flex items-center gap-4">
+                {formData.imageUrl && (
+                  <img src={formData.imageUrl} alt="Preview" className="h-16 w-16 object-cover rounded-lg border border-ink-200 shadow-sm" />
+                )}
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageFileChange}
+                    disabled={uploadingImage}
+                    className="block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
+                  />
+                  {uploadingImage && <p className="text-xs text-brand-600 mt-1">Yükleniyor...</p>}
+                </div>
+                {formData.imageUrl && (
+                  <button type="button" onClick={() => setFormData(p => ({...p, imageUrl: ""}))} className="text-red-500 hover:bg-red-50 p-2 rounded-lg text-sm font-medium transition-colors">
+                    Kaldır
+                  </button>
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
                 <span className="mb-2 block text-sm font-medium">Alış Fiyatı (TL)</span>

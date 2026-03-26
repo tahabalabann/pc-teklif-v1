@@ -6,10 +6,11 @@ import { calculateGrandTotal, calculatePartsTotal } from "../../utils/quote";
 interface PrintQuoteDocumentProps {
   quote: Quote;
   showItemPrices: boolean;
+  showImages: boolean;
   printTemplate: PrintTemplateMode;
 }
 
-export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: PrintQuoteDocumentProps) {
+export function PrintQuoteDocument({ quote, showItemPrices, showImages, printTemplate }: PrintQuoteDocumentProps) {
   const visibleRows = quote.rows.filter((row) => row.product || row.description || row.salePrice > 0);
   const partsTotal = calculatePartsTotal(quote.rows);
   const grandTotal = calculateGrandTotal(quote);
@@ -33,6 +34,12 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
             </p>
           )}
         </div>
+
+        {showImages && quote.quoteImage && (
+          <div className="mr-8">
+            <img src={quote.quoteImage} alt="Teklif Görseli" className="w-24 h-24 object-cover rounded shadow-sm border border-ink-200" />
+          </div>
+        )}
 
         <div className="print-meta-card">
           <div className="print-meta-row">
@@ -85,6 +92,7 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
         <table className="print-table">
           <thead>
             <tr>
+              {showImages && <th className="w-12 text-center">Görsel</th>}
               <th>Kategori</th>
               <th>Ürün / Model</th>
               <th>Açıklama</th>
@@ -94,13 +102,22 @@ export function PrintQuoteDocument({ quote, showItemPrices, printTemplate }: Pri
           <tbody>
             {visibleRows.length === 0 ? (
               <tr>
-                <td colSpan={shouldShowPrices ? 4 : 3} className="print-empty">
+                <td colSpan={(shouldShowPrices ? 4 : 3) + (showImages ? 1 : 0)} className="print-empty">
                   Henüz sistem parçası eklenmedi.
                 </td>
               </tr>
             ) : (
               visibleRows.map((row) => (
                 <tr key={row.id}>
+                  {showImages && (
+                    <td className="text-center align-middle">
+                      {row.imageUrl ? (
+                        <img src={row.imageUrl} alt="Urun" className="w-10 h-10 object-cover rounded mx-auto" />
+                      ) : (
+                        <span className="text-ink-300">-</span>
+                      )}
+                    </td>
+                  )}
                   <td>{row.category}</td>
                   <td>{row.product || "-"}</td>
                   <td>{row.description || "-"}</td>

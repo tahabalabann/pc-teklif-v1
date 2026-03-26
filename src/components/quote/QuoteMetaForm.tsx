@@ -1,5 +1,7 @@
-import type { ChangeEvent, ReactNode } from "react";
+import { useState, type ChangeEvent, type ReactNode } from "react";
 import type { Quote, QuoteStatus } from "../../types/quote";
+import { uploadApi } from "../../utils/api";
+import { toast } from "react-hot-toast";
 import { Card } from "../ui/Card";
 
 const statuses: QuoteStatus[] = [
@@ -19,9 +21,42 @@ interface QuoteMetaFormProps {
 }
 
 export function QuoteMetaForm({ quote, onChange }: QuoteMetaFormProps) {
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   const handleInput =
     (field: keyof Quote) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       onChange(field, event.target.value);
+
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result as string;
+          const url = await uploadApi.uploadImage(base64, file.name);
+          onChange("quoteImage", url);
+          toast.success("Teklif görseli yüklendi.");
+        } catch (error) {
+          toast.error("Teklif görseli yüklenemedi.");
+        } finally {
+          setUploadingImage(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error("Dosya okunamadı.");
+      setUploadingImage(false);
+    }
+  };
 
   return (
     <Card className="p-5">
@@ -80,6 +115,35 @@ export function QuoteMetaForm({ quote, onChange }: QuoteMetaFormProps) {
         <Field label="Notlar">
           <textarea className="field min-h-28 resize-y" value={quote.notes} onChange={handleInput("notes")} />
         </Field>
+      </div>
+
+      <div className="mt-4 border-t border-ink-100 pt-4">
+        <label className="block max-w-lg">
+          <span className="mb-2 block text-sm font-medium text-ink-900">Teklif / Kasa Görseli (Opsiyonel)</span>
+          <p className="text-sm text-ink-500 mb-3">
+            Toplu sistem satışları veya tek resimli gösterimler için kullanılır. Eklenirse PDF çıktısında gösterilir.
+          </p>
+          <div className="flex items-center gap-4">
+            {quote.quoteImage && (
+              <img src={quote.quoteImage} alt="Teklif Görseli" className="h-20 w-20 object-cover rounded-xl shadow-sm border border-ink-200 bg-white" />
+            )}
+            <div className="flex-1">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageFileChange}
+                disabled={uploadingImage}
+                className="block w-full text-sm text-ink-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100 cursor-pointer"
+              />
+              {uploadingImage && <p className="text-xs text-brand-600 mt-1">Görsel yükleniyor...</p>}
+            </div>
+            {quote.quoteImage && (
+              <button type="button" onClick={() => onChange("quoteImage", "")} className="text-red-500 hover:bg-red-50 px-3 py-2 rounded-lg text-sm font-medium transition-colors border border-red-100 bg-white shadow-sm">
+                Kaldır
+              </button>
+            )}
+          </div>
+        </label>
       </div>
     </Card>
   );

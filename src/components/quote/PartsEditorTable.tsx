@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState, type ChangeEvent, type ReactNode } from "
 import type { QuoteRow } from "../../types/quote";
 import { partsCatalog, type CatalogPartItem } from "../../data/partsCatalog";
 import { DEFAULT_ROW_CATEGORIES, generateId, sanitizeNumber } from "../../utils/quote";
-import { productsApi } from "../../utils/api";
+import { productsApi, uploadApi } from "../../utils/api";
 import { formatCurrency, formatInputNumber } from "../../utils/money";
+import { toast } from "react-hot-toast";
 import { Button } from "../ui/Button";
 import { Card } from "../ui/Card";
 
@@ -14,6 +15,7 @@ interface PartsEditorTableProps {
 
 export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
   const [dynamicProducts, setDynamicProducts] = useState<CatalogPartItem[]>([]);
+  const [uploadingRows, setUploadingRows] = useState<Record<string, boolean>>({});
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogCategoryFilter, setCatalogCategoryFilter] = useState("Tum Kategoriler");
   const [catalogBrandFilter, setCatalogBrandFilter] = useState("Tum Markalar");
@@ -30,6 +32,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             purchasePrice: p.purchasePrice,
             salePrice: p.salePrice,
             brand: "Katalog",
+            imageUrl: p.imageUrl,
           }))
         );
       })
@@ -99,6 +102,37 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
     );
   };
 
+  const handleRowImageUpload = async (rowId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Dosya boyutu 5MB'dan küçük olmalıdır.");
+      return;
+    }
+
+    setUploadingRows((prev) => ({ ...prev, [rowId]: true }));
+    try {
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64 = reader.result as string;
+          const url = await uploadApi.uploadImage(base64, file.name);
+          updateRow(rowId, "imageUrl", url);
+          toast.success("Fotoğraf eklendi.");
+        } catch (error) {
+          toast.error("Fotoğraf yüklenemedi.");
+        } finally {
+          setUploadingRows((prev) => ({ ...prev, [rowId]: false }));
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error("Dosya okunamadı.");
+      setUploadingRows((prev) => ({ ...prev, [rowId]: false }));
+    }
+  };
+
   const moveRow = (id: string, direction: "up" | "down") => {
     const index = rows.findIndex((row) => row.id === id);
     if (index < 0) {
@@ -148,6 +182,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
                 description: selectedCatalogItem.description,
                 purchasePrice: selectedCatalogItem.purchasePrice,
                 salePrice: selectedCatalogItem.salePrice,
+                imageUrl: selectedCatalogItem.imageUrl || row.imageUrl,
               }
             : row,
         ),
@@ -164,6 +199,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
         description: selectedCatalogItem.description,
         purchasePrice: selectedCatalogItem.purchasePrice,
         salePrice: selectedCatalogItem.salePrice,
+        imageUrl: selectedCatalogItem.imageUrl,
       },
     ]);
   };
@@ -236,6 +272,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
           <table className="min-w-[1180px] text-sm">
             <thead className="bg-ink-50 text-left text-xs uppercase tracking-[0.16em] text-ink-500">
               <tr>
+                <th className="px-3 py-3 w-16 text-center">Görsel</th>
                 <th className="px-4 py-3">Kategori</th>
                 <th className="px-4 py-3">Urun / Model</th>
                 <th className="px-4 py-3">Aciklama</th>
@@ -247,6 +284,31 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             <tbody>
               {rows.map((row, index) => (
                 <tr key={row.id} className="border-t border-ink-100 align-top">
+                  <td className="px-3 py-3 text-center align-middle">
+                    {row.imageUrl ? (
+                      <div className="relative group mx-auto w-12 h-12">
+                        <img src={row.imageUrl} alt="Urun" className="w-12 h-12 object-cover rounded shadow-sm border border-ink-200" />
+                        <button
+                          type="button"
+                          onClick={() => updateRow(row.id, "imageUrl", "")}
+                          className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5 flex items-center justify-center text-[10px]"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-12 h-12 border-2 border-dashed border-ink-200 text-ink-400 rounded cursor-pointer hover:border-brand-400 hover:text-brand-500 transition-colors bg-ink-50 text-xs text-center p-1">
+                        {uploadingRows[row.id] ? "..." : "+"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          disabled={uploadingRows[row.id]}
+                          onChange={(e) => handleRowImageUpload(row.id, e)}
+                        />
+                      </label>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <select
                       className="field"

@@ -18,6 +18,7 @@ import { addressRouter, senderAddressRouter } from "./routes/address.routes.js";
 import { companiesRouter } from "./routes/companies.routes.js";
 import { shippingRouter } from "./routes/shipping.routes.js";
 import notificationRouter from "./routes/notifications.routes.js";
+import { uploadRouter } from "./routes/upload.routes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
 
 const app = express();
@@ -42,7 +43,7 @@ app.use(
 
 // Middleware
 app.use(morgan("combined", { stream: { write: (message) => logger.info(message.trim()) } }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "50mb" }));
 
 // Register Routers
 app.use("/api/auth", authRouter);
@@ -56,8 +57,13 @@ app.use("/api/public/quotes", publicQuotesRouter);
 app.use("/api/address-book", addressRouter);
 app.use("/api/sender-address-book", senderAddressRouter);
 app.use("/api/companies", companiesRouter);
+app.use("/api/upload", uploadRouter);
 app.use("/api", shippingRouter);
 app.use("/api/notifications", notificationRouter);
+
+// Serve uploads as static files
+import path from "path";
+app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 import { ratesRouter } from "./routes/rates.routes.js";
 app.use("/api/rates", ratesRouter);

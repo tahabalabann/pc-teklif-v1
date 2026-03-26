@@ -176,9 +176,20 @@ export interface CatalogProduct {
   description: string;
   purchasePrice: number;
   salePrice: number;
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export const uploadApi = {
+  uploadImage: async (base64: string, filename: string) =>
+    (
+      await apiRequest<{ url: string }>("/api/upload", {
+        method: "POST",
+        body: JSON.stringify({ imageBase64: base64, filename }),
+      })
+    ).url,
+};
 
 export const productsApi = {
   list: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/quotes/products")).products,
