@@ -38,7 +38,7 @@ export function PrintQuoteDocument({ quote, showItemPrices, showImages, printTem
         <div className="flex items-start gap-6">
           {showImages && quote.quoteImage && (
             <div className="shrink-0">
-              <img src={quote.quoteImage} alt="Teklif Görseli" className="w-28 h-28 object-contain rounded-xl shadow-sm border border-ink-200 bg-white p-1" />
+              <img src={quote.quoteImage} alt="Teklif Görseli" className="w-40 h-40 object-contain rounded-xl shadow-sm border border-ink-200 bg-white p-1" />
             </div>
           )}
 

@@ -44,7 +44,7 @@ export const exportQuoteToPdf = async (quote: Quote, options?: { showImages?: bo
   // If we have a quote image, draw it on the right side
   if (quoteImageBase64) {
     // Top right corner image
-    doc.addImage(quoteImageBase64, "JPEG", 150, 15, 40, 40, undefined, "FAST");
+    doc.addImage(quoteImageBase64, "JPEG", 140, 15, 50, 50, undefined, "FAST");
   }
 
   doc.setFontSize(20);
@@ -96,7 +96,7 @@ export const exportQuoteToPdf = async (quote: Quote, options?: { showImages?: bo
     }
   });
 
-  const finalY = (doc as any).lastAutoTable.finalY || (quoteImageBase64 ? 60 : 150);
+  const finalY = (doc as any).lastAutoTable.finalY || (quoteImageBase64 ? 70 : 150);
 
   // Footer / Totals
   doc.setFontSize(11);
