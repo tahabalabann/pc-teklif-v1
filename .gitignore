@@ -4,7 +4,11 @@ dist
 vite.config.js
 vite.config.d.ts
 .env
+dev.db
 prisma/dev.db
+server/logs/
+uploads/
+*.log
 tools/
 *.json
 !package.json
