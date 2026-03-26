@@ -63,7 +63,7 @@ app.use("/api/notifications", notificationRouter);
 
 // Serve uploads as static files
 import path from "path";
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/api/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 import { ratesRouter } from "./routes/rates.routes.js";
 app.use("/api/rates", ratesRouter);

@@ -45,7 +45,7 @@ uploadRouter.post("/", requireAuth, async (req, res, next) => {
 
     await fs.writeFile(filePath, buffer);
 
-    const fileUrl = `/uploads/${newFilename}`;
+    const fileUrl = `/api/uploads/${newFilename}`;
     res.json({ url: fileUrl });
   } catch (error) {
     next(error);

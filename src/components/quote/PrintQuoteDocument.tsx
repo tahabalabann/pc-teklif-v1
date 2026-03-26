@@ -35,49 +35,51 @@ export function PrintQuoteDocument({ quote, showItemPrices, showImages, printTem
           )}
         </div>
 
-        {showImages && quote.quoteImage && (
-          <div className="mr-8">
-            <img src={quote.quoteImage} alt="Teklif Görseli" className="w-24 h-24 object-cover rounded shadow-sm border border-ink-200" />
-          </div>
-        )}
+        <div className="flex items-start gap-6">
+          {showImages && quote.quoteImage && (
+            <div className="shrink-0">
+              <img src={quote.quoteImage} alt="Teklif Görseli" className="w-28 h-28 object-contain rounded-xl shadow-sm border border-ink-200 bg-white p-1" />
+            </div>
+          )}
 
-        <div className="print-meta-card">
-          <div className="print-meta-row">
-            <span>Teklif No</span>
-            <strong>{quote.quoteNo}</strong>
-          </div>
-          <div className="print-meta-row">
-            <span>Tarih</span>
-            <strong>{formatDisplayDate(quote.date)}</strong>
-          </div>
-          <div className="print-meta-row">
-            <span>Müşteri</span>
-            <strong>{quote.customerName || "-"}</strong>
-          </div>
-          <div className="print-meta-row">
-            <span>Durum</span>
-            <strong>{quote.status}</strong>
-          </div>
-          {quote.geliverShipment?.providerName && (
+          <div className="print-meta-card">
             <div className="print-meta-row">
-              <span>Kargo Firması</span>
-              <strong>
-                {quote.geliverShipment.providerName} / {quote.geliverShipment.providerServiceCode}
-              </strong>
+              <span>Teklif No</span>
+              <strong>{quote.quoteNo}</strong>
             </div>
-          )}
-          {quote.geliverShipment?.agreementText && (
             <div className="print-meta-row">
-              <span>Kargo Anlaşması</span>
-              <strong>{quote.geliverShipment.agreementText}</strong>
+              <span>Tarih</span>
+              <strong>{formatDisplayDate(quote.date)}</strong>
             </div>
-          )}
-          {quote.geliverShipment?.barcode && (
             <div className="print-meta-row">
-              <span>Kargo Barkod No</span>
-              <strong>{quote.geliverShipment.barcode}</strong>
+              <span>Müşteri</span>
+              <strong>{quote.customerName || "-"}</strong>
             </div>
-          )}
+            <div className="print-meta-row">
+              <span>Durum</span>
+              <strong>{quote.status}</strong>
+            </div>
+            {quote.geliverShipment?.providerName && (
+              <div className="print-meta-row">
+                <span>Kargo Firması</span>
+                <strong>
+                  {quote.geliverShipment.providerName} / {quote.geliverShipment.providerServiceCode}
+                </strong>
+              </div>
+            )}
+            {quote.geliverShipment?.agreementText && (
+              <div className="print-meta-row">
+                <span>Kargo Anlaşması</span>
+                <strong>{quote.geliverShipment.agreementText}</strong>
+              </div>
+            )}
+            {quote.geliverShipment?.barcode && (
+              <div className="print-meta-row">
+                <span>Kargo Barkod No</span>
+                <strong>{quote.geliverShipment.barcode}</strong>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
