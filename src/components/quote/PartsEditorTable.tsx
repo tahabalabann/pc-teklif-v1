@@ -33,6 +33,8 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             salePrice: p.salePrice,
             brand: "Katalog",
             imageUrl: p.imageUrl,
+            stockCount: p.stockCount,
+            minStockLevel: p.minStockLevel,
           }))
         );
       })
@@ -157,7 +159,7 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
       ...rows,
       {
         id: generateId(),
-        category: "Diger",
+        category: "Diğer",
         product: "",
         description: "",
         purchasePrice: 0,
@@ -183,6 +185,8 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
                 purchasePrice: selectedCatalogItem.purchasePrice,
                 salePrice: selectedCatalogItem.salePrice,
                 imageUrl: selectedCatalogItem.imageUrl || row.imageUrl,
+                stockCount: selectedCatalogItem.stockCount,
+                minStockLevel: selectedCatalogItem.minStockLevel,
               }
             : row,
         ),
@@ -200,6 +204,8 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
         purchasePrice: selectedCatalogItem.purchasePrice,
         salePrice: selectedCatalogItem.salePrice,
         imageUrl: selectedCatalogItem.imageUrl,
+        stockCount: selectedCatalogItem.stockCount,
+        minStockLevel: selectedCatalogItem.minStockLevel,
       },
     ]);
   };
@@ -240,11 +246,15 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             ))}
           </select>
           <select className="field min-w-[250px]" value={catalogItemId} onChange={(event) => setCatalogItemId(event.target.value)}>
-            {filteredCatalog.map((item) => (
-              <option key={item.id} value={item.id}>
-                {(item.brand || "Markasiz") + " - " + item.category + " - " + item.product}
-              </option>
-            ))}
+            {filteredCatalog.map((item) => {
+              const isLowStock = item.stockCount !== undefined && item.stockCount <= (item.minStockLevel || 0);
+              return (
+                <option key={item.id} value={item.id} className={isLowStock ? 'text-red-500' : ''}>
+                  {(item.brand || "Markasız") + " - " + item.category + " - " + item.product} 
+                  {item.stockCount !== undefined ? ` (Stok: ${item.stockCount})` : ''}
+                </option>
+              );
+            })}
           </select>
           <Button onClick={addCatalogItem} type="button" variant="secondary">
             Katalogdan Ekle
@@ -284,7 +294,10 @@ export function PartsEditorTable({ rows, onChange }: PartsEditorTableProps) {
             <tbody>
               {rows.map((row, index) => (
                 <tr key={row.id} className="border-t border-ink-100 align-top">
-                  <td className="px-3 py-3 text-center align-middle">
+                  <td className="px-3 py-3 text-center align-middle relative">
+                    {row.stockCount !== undefined && row.stockCount <= (row.minStockLevel || 0) && (
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 rounded-r shadow-sm" title="Stok Yetersiz!" />
+                    )}
                     {row.imageUrl ? (
                       <div className="relative group mx-auto w-12 h-12">
                         <img src={row.imageUrl} alt="Urun" className="w-12 h-12 object-cover rounded shadow-sm border border-ink-200" />

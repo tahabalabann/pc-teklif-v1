@@ -17,6 +17,7 @@ const emptySummary: DashboardSummary = {
   todayShipments: 0,
   pendingDepositRequests: 0,
   lowBalanceUsers: 0,
+  lowStockCount: 0,
 };
 
 export function DashboardPage() {
@@ -178,6 +179,12 @@ export function DashboardPage() {
               label="Düşük Bakiyeli Kullanıcı"
               tone={summary.lowBalanceUsers > 0 ? "warning" : "neutral"}
               value={String(summary.lowBalanceUsers)}
+            />
+            <MetricCard
+              delay={0.5}
+              label="Kritik Stok Uyarıları"
+              tone={summary.lowStockCount > 0 ? "warning" : "neutral"}
+              value={String(summary.lowStockCount)}
             />
           </div>
         </Card>

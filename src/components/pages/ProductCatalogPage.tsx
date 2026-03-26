@@ -25,6 +25,8 @@ export function ProductCatalogPage() {
     purchasePrice: "",
     salePrice: "",
     imageUrl: "",
+    stockCount: "",
+    minStockLevel: "0",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -54,6 +56,8 @@ export function ProductCatalogPage() {
       purchasePrice: "",
       salePrice: "",
       imageUrl: "",
+      stockCount: "",
+      minStockLevel: "0",
     });
     setIsModalOpen(true);
   };
@@ -67,6 +71,8 @@ export function ProductCatalogPage() {
       purchasePrice: String(product.purchasePrice || 0),
       salePrice: String(product.salePrice || 0),
       imageUrl: product.imageUrl || "",
+      stockCount: String(product.stockCount ?? ""),
+      minStockLevel: String(product.minStockLevel ?? "0"),
     });
     setIsModalOpen(true);
   };
@@ -98,6 +104,8 @@ export function ProductCatalogPage() {
         purchasePrice: Number(formData.purchasePrice) || 0,
         salePrice: Number(formData.salePrice) || 0,
         imageUrl: formData.imageUrl,
+        stockCount: formData.stockCount === "" ? undefined : Number(formData.stockCount),
+        minStockLevel: Number(formData.minStockLevel || 0),
       };
       const saved = await productsApi.save(payload);
       if (editingId) {
@@ -197,8 +205,8 @@ export function ProductCatalogPage() {
                 <th className="px-6 py-4">KATEGORİ</th>
                 <th className="px-6 py-4 w-12 text-center">GÖRSEL</th>
                 <th className="px-6 py-4">ÜRÜN / MODEL</th>
-                <th className="px-6 py-4 text-right">ALIŞ FİYATI</th>
-                <th className="px-6 py-4 text-right">SATIŞ FİYATI</th>
+                <th className="px-6 py-4 text-right">FİYATLAR</th>
+                <th className="px-6 py-4 text-right">STOK</th>
                 <th className="px-6 py-4 text-center">İŞLEMLER</th>
               </tr>
             </thead>
@@ -217,7 +225,7 @@ export function ProductCatalogPage() {
                 </tr>
               ) : (
                 filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-ink-50/50 transition-colors">
+                  <tr key={item.id} className="hover:bg-ink-50/50 transition-colors group">
                     <td className="px-6 py-4 text-ink-600 font-medium">{item.category}</td>
                     <td className="px-6 py-4 text-center">
                       {item.imageUrl ? (
@@ -232,8 +240,25 @@ export function ProductCatalogPage() {
                       <div className="text-ink-900 font-medium">{item.name}</div>
                       {item.description && <div className="text-ink-500 text-xs mt-1">{item.description}</div>}
                     </td>
-                    <td className="px-6 py-4 text-right text-ink-600">{formatCurrency(item.purchasePrice)}</td>
-                    <td className="px-6 py-4 text-right text-ink-900 font-semibold">{formatCurrency(item.salePrice)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="text-ink-900 font-semibold">{formatCurrency(item.salePrice)}</div>
+                      <div className="text-ink-400 text-[10px]">Maliyet: {formatCurrency(item.purchasePrice)}</div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      {(() => {
+                        const isLowStock = item.stockCount !== undefined && item.stockCount <= (item.minStockLevel || 0);
+                        return (
+                          <>
+                            <div className={`text-sm font-black ${isLowStock ? "text-red-500" : "text-ink-600"}`}>
+                              {item.stockCount ?? "-"}
+                            </div>
+                            {isLowStock && (
+                              <div className="text-[10px] font-bold text-red-400 uppercase tracking-tighter">Kritik!</div>
+                            )}
+                          </>
+                        );
+                      })()}
+                    </td>
                     <td className="px-6 py-4 text-center space-x-2 whitespace-nowrap">
                       <Button onClick={() => handleEdit(item)} variant="secondary" className="px-3 py-1.5 text-xs">
                         Düzenle
@@ -328,6 +353,28 @@ export function ProductCatalogPage() {
                   className="field"
                   value={formData.salePrice}
                   onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Mevcut Stok</span>
+                <input
+                  type="number"
+                  className="field"
+                  value={formData.stockCount}
+                  onChange={(e) => setFormData({ ...formData, stockCount: e.target.value })}
+                  placeholder="0"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-medium">Kritik Stok Sınırı</span>
+                <input
+                  type="number"
+                  className="field"
+                  value={formData.minStockLevel}
+                  onChange={(e) => setFormData({ ...formData, minStockLevel: e.target.value })}
+                  placeholder="0"
                 />
               </label>
             </div>

@@ -9,6 +9,8 @@ export interface CatalogPartItem {
   lastPurchaseNote?: string;
   lastSaleNote?: string;
   imageUrl?: string;
+  stockCount?: number;
+  minStockLevel?: number;
 }
 
 const getCpuSpecs = (product: string) => {

@@ -184,6 +184,19 @@ export function QuoteWorkspacePage({
           <Button onClick={() => void onSaveQuote()} type="button" variant="primary">
             Teklifi Kaydet
           </Button>
+          <Button
+            onClick={() => {
+              const url = `${window.location.origin}/portal/quote/${activeQuote.id}`;
+              navigator.clipboard.writeText(url).then(() => {
+                toast.success("Müşteri onay linki kopyalandı!");
+              });
+            }}
+            type="button"
+            variant="secondary"
+            className="bg-orange-50 text-orange-700 border-orange-200"
+          >
+            Onay Linkini Kopyala
+          </Button>
           <Button onClick={() => exportQuoteToPdf(activeQuote, { showImages: showImagesInPrint })} type="button" variant="secondary" className="bg-brand-50 text-brand-700 border-brand-200">
             PDF İndir
           </Button>

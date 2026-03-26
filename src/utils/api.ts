@@ -177,6 +177,8 @@ export interface CatalogProduct {
   purchasePrice: number;
   salePrice: number;
   imageUrl?: string;
+  stockCount?: number;
+  minStockLevel?: number;
   createdAt: string;
   updatedAt: string;
 }

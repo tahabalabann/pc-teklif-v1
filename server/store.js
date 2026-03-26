@@ -819,11 +819,10 @@ export async function listUsersForDashboard(currentUser) {
 export async function getDashboardSummaryForUser(user) {
   const todayPrefix = new Date().toISOString().slice(0, 10);
 
-  // Quotes & shipments still need JS parsing (JSON data column)
-  const [quotes, shipments, pendingCountRows, lowBalanceCountRows] = await Promise.all([
+  const [products, quotes, shipments, pendingCountRows, lowBalanceCountRows] = await Promise.all([
+    listProductsForUser(user),
     listQuotesForUser(user),
     listShipmentRecordsForUser(user),
-    // Direct COUNT instead of fetching all deposit requests
     prisma.$queryRaw(
       Prisma.sql`
         SELECT COUNT(*) AS "count"
@@ -832,7 +831,6 @@ export async function getDashboardSummaryForUser(user) {
         WHERE requester."companyId" = ${user.companyId} AND d."status" = 'pending'
       `,
     ),
-    // Direct COUNT instead of fetching all users
     prisma.$queryRaw(
       Prisma.sql`
         SELECT COUNT(*) AS "count"
@@ -849,6 +847,12 @@ export async function getDashboardSummaryForUser(user) {
     (item) => item?.geliverShipment && String(item.geliverShipment.createdAt || item.updatedAt || "").startsWith(todayPrefix),
   ).length;
 
+  const lowStockCount = products.filter(p => {
+    const stock = Number(p.stockCount ?? 0);
+    const min = Number(p.minStockLevel ?? 0);
+    return stock <= min && p.stockCount !== undefined;
+  }).length;
+
   return {
     todayQuotes: quotes.filter((item) => String(item.createdAt || item.updatedAt || "").startsWith(todayPrefix)).length,
     todayShipments:
@@ -856,6 +860,7 @@ export async function getDashboardSummaryForUser(user) {
       quoteShipmentsToday,
     pendingDepositRequests: Number(pendingCountRows[0]?.count || 0),
     lowBalanceUsers: Number(lowBalanceCountRows[0]?.count || 0),
+    lowStockCount,
   };
 }
 
@@ -1317,12 +1322,33 @@ export async function deleteQuoteForUser(user, quoteId) {
 export async function getPublicQuoteById(id) {
   const rows = await prisma.$queryRaw(Prisma.sql`SELECT "data" FROM "Quote" WHERE "id" = ${id} LIMIT 1`);
   if (!rows[0]) return null;
-  return JSON.parse(rows[0].data);
+  const quote = JSON.parse(rows[0].data);
+  
+  // Sanitize: Remove sensitive info for public view
+  if (quote.rows) {
+    quote.rows = quote.rows.map(row => {
+      const { 
+        purchasePrice, 
+        purchaseCurrency, 
+        margin, 
+        profit, 
+        ...sanitized 
+      } = row;
+      return sanitized;
+    });
+  }
+  
+  // Remove overall totals if they include profit/margin
+  delete quote.totalProfit;
+  delete quote.averageMargin;
+  
+  return quote;
 }
 
 export async function updatePublicQuoteStatus(id, status, customerNote = "") {
-  const quote = await getPublicQuoteById(id);
-  if (!quote) throw new Error("Teklif bulunamadı.");
+  const quoteRows = await prisma.$queryRaw(Prisma.sql`SELECT "data" FROM "Quote" WHERE "id" = ${id} LIMIT 1`);
+  if (!quoteRows[0]) throw new Error("Teklif bulunamadı.");
+  const quote = JSON.parse(quoteRows[0].data);
   
   const now = new Date().toISOString();
   quote.status = status;
@@ -1331,6 +1357,14 @@ export async function updatePublicQuoteStatus(id, status, customerNote = "") {
 
   if (status === "Onaylandı") {
     quote.customerApprovedAt = now;
+    
+    // Suggestion 5: Deduct stock from catalog
+    try {
+      await deductStockForQuote(quote);
+    } catch (err) {
+      console.error("Stock deduction failed:", err);
+      // We still update the status even if stock deduction fails, but we log it
+    }
   } else if (status === "Reddedildi") {
     quote.customerRejectedAt = now;
   }
@@ -1338,8 +1372,60 @@ export async function updatePublicQuoteStatus(id, status, customerNote = "") {
   await prisma.$executeRaw(
     Prisma.sql`UPDATE "Quote" SET "data" = ${JSON.stringify(quote)}, "updatedAt" = ${quote.updatedAt} WHERE "id" = ${id}`
   );
+
+  // Trigger notification for admin
+  const userRows = await prisma.$queryRaw(Prisma.sql`SELECT "ownerUserId" FROM "Quote" WHERE "id" = ${id} LIMIT 1`);
+  if (userRows[0]) {
+    await createNotificationForUser(userRows[0].ownerUserId, {
+      type: "quote_status",
+      title: `Teklif ${status}`,
+      message: `"${quote.quoteNo}" numaralı teklif müşteri tarafından ${status.toLowerCase()} olarak işaretlendi.`,
+      quoteId: id
+    });
+  }
   
   return quote;
+}
+
+async function deductStockForQuote(quote) {
+  if (!quote.rows || quote.rows.length === 0) return;
+
+  for (const row of quote.rows) {
+    // Only deduct if it's a catalog product (we usually store catalogItemId in the row)
+    // Looking at the data, we might need to match by name/model if ID isn't there
+    const catalogId = row.catalogItemId || row.id; 
+    
+    const productRows = await prisma.$queryRaw(
+      Prisma.sql`SELECT "id", "data" FROM "ProductCatalogEntry" WHERE "id" = ${catalogId} LIMIT 1`
+    );
+
+    if (productRows[0]) {
+      const productData = JSON.parse(productRows[0].data);
+      const currentStock = Number(productData.stockCount || 0);
+      const quantity = Number(row.quantity || 1);
+      
+      productData.stockCount = Math.max(0, currentStock - quantity);
+      productData.updatedAt = new Date().toISOString();
+
+      await prisma.$executeRaw(
+        Prisma.sql`UPDATE "ProductCatalogEntry" SET "data" = ${JSON.stringify(productData)}, "updatedAt" = ${productData.updatedAt} WHERE "id" = ${catalogId}`
+      );
+
+      // Notify if below critical level
+      const minStock = Number(productData.minStockLevel || 0);
+      if (productData.stockCount <= minStock) {
+        const ownerRows = await prisma.$queryRaw(Prisma.sql`SELECT "ownerUserId" FROM "ProductCatalogEntry" WHERE "id" = ${catalogId} LIMIT 1`);
+        if (ownerRows[0]) {
+          await createNotificationForUser(ownerRows[0].ownerUserId, {
+            type: "low_stock",
+            title: "Kritik Stok Uyarısı",
+            message: `"${productData.name}" ürünü kritik stok seviyesine (${productData.stockCount}) düştü.`,
+            productId: catalogId
+          });
+        }
+      }
+    }
+  }
 }
 
 export async function listAddressBookForUser(user) {

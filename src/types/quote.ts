@@ -18,6 +18,8 @@ export interface QuoteRow {
   purchasePrice: number;
   salePrice: number;
   imageUrl?: string;
+  stockCount?: number;
+  minStockLevel?: number;
 }
 
 export interface GeliverRecipientAddress {
@@ -273,6 +275,7 @@ export interface DashboardSummary {
   todayShipments: number;
   pendingDepositRequests: number;
   lowBalanceUsers: number;
+  lowStockCount: number;
 }
 
 export interface CompanyReportSummary {
