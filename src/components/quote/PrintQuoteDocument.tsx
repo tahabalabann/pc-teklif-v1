@@ -23,7 +23,7 @@ export function PrintQuoteDocument({ quote, showItemPrices, showImages, printTem
   return (
     <section className="print-document">
       <header className="print-header">
-        <div>
+        <div className="print-header-left">
           <p className="print-eyebrow">
             {proforma ? "Resmi Proforma Teklif" : shippingFocused ? "Kargo Dahil Teklif" : "Bilgisayar Sistem Teklifi"}
           </p>
@@ -35,48 +35,40 @@ export function PrintQuoteDocument({ quote, showItemPrices, showImages, printTem
           )}
         </div>
 
-        <div className="flex items-start gap-6">
-          {showImages && quote.quoteImage && (
-            <div className="shrink-0">
-              <img src={quote.quoteImage} alt="Teklif Görseli" className="w-40 h-40 object-contain rounded-xl shadow-sm border border-ink-200 bg-white p-1" />
-            </div>
-          )}
+        {showImages && quote.quoteImage && (
+          <div className="print-header-center">
+            <img 
+              src={quote.quoteImage} 
+              alt="Teklif Görseli" 
+              className="w-72 h-60 object-contain rounded-2xl shadow-lg border border-ink-100 bg-white p-1" 
+            />
+          </div>
+        )}
 
+        <div className="print-header-right">
           <div className="print-meta-card">
-            <div className="print-meta-row">
-              <span>Teklif No</span>
-              <strong>{quote.quoteNo}</strong>
+            <div className="print-meta-row py-1">
+              <span className="shrink-0 text-ink-500">Teklif No</span>
+              <strong className="text-right truncate ml-4 text-ink-900">{quote.quoteNo}</strong>
             </div>
-            <div className="print-meta-row">
-              <span>Tarih</span>
-              <strong>{formatDisplayDate(quote.date)}</strong>
+            <div className="print-meta-row py-1">
+              <span className="shrink-0 text-ink-500">Tarih</span>
+              <strong className="text-right text-ink-900">{formatDisplayDate(quote.date)}</strong>
             </div>
-            <div className="print-meta-row">
-              <span>Müşteri</span>
-              <strong>{quote.customerName || "-"}</strong>
+            <div className="print-meta-row py-1">
+              <span className="shrink-0 text-ink-500">Müşteri</span>
+              <strong className="text-right truncate ml-4 text-ink-900 line-clamp-2">{quote.customerName || "-"}</strong>
             </div>
-            <div className="print-meta-row">
-              <span>Durum</span>
-              <strong>{quote.status}</strong>
+            <div className="print-meta-row py-1">
+              <span className="shrink-0 text-ink-500">Durum</span>
+              <strong className="text-right text-ink-900">{quote.status}</strong>
             </div>
             {quote.geliverShipment?.providerName && (
-              <div className="print-meta-row">
-                <span>Kargo Firması</span>
-                <strong>
-                  {quote.geliverShipment.providerName} / {quote.geliverShipment.providerServiceCode}
+              <div className="print-meta-row py-1">
+                <span className="shrink-0 text-ink-500">Kargo</span>
+                <strong className="text-right truncate ml-4 text-ink-900">
+                  {quote.geliverShipment.providerName}
                 </strong>
-              </div>
-            )}
-            {quote.geliverShipment?.agreementText && (
-              <div className="print-meta-row">
-                <span>Kargo Anlaşması</span>
-                <strong>{quote.geliverShipment.agreementText}</strong>
-              </div>
-            )}
-            {quote.geliverShipment?.barcode && (
-              <div className="print-meta-row">
-                <span>Kargo Barkod No</span>
-                <strong>{quote.geliverShipment.barcode}</strong>
               </div>
             )}
           </div>

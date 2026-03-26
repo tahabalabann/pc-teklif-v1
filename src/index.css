@@ -224,10 +224,22 @@ img {
 }
 
 .print-header {
-  display: grid;
-  grid-template-columns: 1.4fr 0.8fr;
-  gap: 12px;
+  display: flex;
+  justify-content: space-between;
   align-items: start;
+  gap: 20px;
+}
+
+.print-header-left {
+  flex: 1;
+}
+
+.print-header-center {
+  flex: 0 0 auto;
+}
+
+.print-header-right {
+  flex: 0 0 220px;
 }
 
 .print-eyebrow {
@@ -269,9 +281,9 @@ img {
 .print-summary-total {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
-  padding: 4px 0;
-  font-size: 12px;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 11px;
 }
 
 .print-meta-row + .print-meta-row,
@@ -298,7 +310,7 @@ img {
 
 .print-section-head span {
   color: #64748b;
-  font-size: 11px;
+  font-size: 10px;
 }
 
 .print-table {
@@ -319,9 +331,9 @@ img {
 }
 
 .print-table td {
-  padding: 6px 10px;
+  padding: 4px 10px;
   border-top: 1px solid #e5e7eb;
-  font-size: 12px;
+  font-size: 11px;
   vertical-align: top;
 }
 
