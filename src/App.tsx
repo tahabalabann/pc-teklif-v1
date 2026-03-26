@@ -16,6 +16,7 @@ import { SettingsPage } from "./components/pages/SettingsPage";
 import { ShippingPage } from "./components/pages/ShippingPage";
 import { ProductCatalogPage } from "./components/pages/ProductCatalogPage";
 import { CustomerPortalPage } from "./components/pages/CustomerPortalPage";
+import { LandingPage } from "./components/pages/LandingPage";
 import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 
 // Custom Hooks
@@ -95,6 +96,7 @@ function App() {
   }
 
   const isPortal = location.pathname.startsWith("/portal");
+  const isLanding = location.pathname === "/";
 
   if (!session) {
     if (isPortal) {
@@ -108,6 +110,16 @@ function App() {
         </div>
       );
     }
+    
+    if (isLanding) {
+      return (
+        <>
+          <Toaster position="bottom-right" />
+          <LandingPage />
+        </>
+      );
+    }
+
     return <LoginScreen onLogin={handleLogin} />;
   }
 
@@ -130,7 +142,7 @@ function App() {
           />
         )}
 
-        <main className={`relative z-0 mx-auto ${isPortal ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
+        <main className={`relative z-0 mx-auto ${isPortal || isLanding ? 'max-w-4xl py-2' : 'max-w-[1700px] px-4 py-6 sm:px-6 lg:px-8'}`}>
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -138,11 +150,11 @@ function App() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="space-y-6"
+              className={isLanding ? "" : "space-y-6"}
             >
               <Routes location={location}>
                 <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
-                <Route path="/" element={<Navigate to="/quotes" replace />} />
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/products" element={<ProductCatalogPage />} />
                 <Route path="/dashboard" element={canAccessRoute(session.user, "dashboard") ? <DashboardPage /> : <Navigate to="/quotes" replace />} />
                 <Route path="/quotes" element={
