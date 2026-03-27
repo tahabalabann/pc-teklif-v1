@@ -100,9 +100,11 @@ function App() {
 
   const isPortal = location.pathname.startsWith("/portal");
   const isLanding = location.pathname === "/";
+  const isRegister = location.pathname === "/register";
+  const isBuilder = location.pathname === "/builder";
 
   if (!session) {
-    if (isPortal) {
+    if (isPortal || isRegister || isBuilder) {
       return (
         <div className={`min-h-screen transition-colors duration-500 ${theme === "dark" ? "theme-dark bg-[#020617] bg-gradient-mesh" : "bg-slate-50 bg-gradient-mesh"}`}>
           <Toaster position="bottom-right" toastOptions={{ duration: 4000, className: "backdrop-blur-xl bg-white/90 shadow-elevated border border-ink-100 dark:bg-slate-900/90 dark:border-slate-800 dark:text-white" }} />
