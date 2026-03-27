@@ -141,7 +141,7 @@ export interface AppUser {
   id: string;
   name: string;
   email: string;
-  role: "admin" | "staff" | "accounting" | "operations" | "shipping" | "sales";
+  role: "admin" | "staff" | "accounting" | "operations" | "shipping" | "sales" | "customer";
   createdAt: string;
   companyId: string;
   companyName: string;

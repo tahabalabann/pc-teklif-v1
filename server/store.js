@@ -194,11 +194,11 @@ export async function createUser({ name, email, password, role, companyId, actor
         ${id},
         ${name},
         ${normalizedEmail},
-        ${["admin", "staff", "accounting", "operations", "shipping", "sales"].includes(role) ? role : "staff"},
+        ${["admin", "staff", "accounting", "operations", "shipping", "sales", "customer"].includes(role) ? role : "customer"},
         ${now},
         ${passwordData.hash},
         ${passwordData.salt},
-        ${companyId},
+        ${companyId || null},
         ${0},
         ${0},
         ${1}

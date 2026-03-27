@@ -26,6 +26,28 @@ authRouter.post("/login", async (req, res) => {
   return res.json({ token, user });
 });
 
+authRouter.post("/register", async (req, res) => {
+  const { name, email, password } = req.body ?? {};
+  if (!name || !email || !password) {
+    return res.status(400).json({ error: "İsim, e-posta ve parola zorunludur." });
+  }
+
+  try {
+    const user = await createUser({
+      name,
+      email,
+      password,
+      role: "customer",
+      companyId: null,
+    });
+
+    const token = await createSessionForUser(user);
+    res.json({ token, user });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
 authRouter.post("/logout", requireAuth, async (req, res) => {
   await deleteSession(req.sessionToken);
   res.json({ ok: true });

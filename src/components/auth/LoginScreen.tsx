@@ -89,6 +89,13 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               )}
             </Button>
           </form>
+
+          <div className="mt-8 text-center">
+            <p className="text-sm font-medium text-ink-500">
+              Hesabınız yok mu?{" "}
+              <a href="/register" className="text-orange-600 font-bold hover:underline">Kaydolun</a>
+            </p>
+          </div>
         </div>
         
         <p className="mt-8 text-center text-sm font-medium text-ink-400">

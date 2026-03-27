@@ -68,6 +68,14 @@ export const authApi = {
     sessionStorageApi.setToken(session.token);
     return session;
   },
+  register: async (name: string, email: string, password: string) => {
+    const session = await apiRequest<AuthSession>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ name, email, password }),
+    });
+    sessionStorageApi.setToken(session.token);
+    return session;
+  },
   logout: async () => {
     await apiRequest<{ ok: true }>("/api/auth/logout", { method: "POST" });
     sessionStorageApi.clearToken();

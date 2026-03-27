@@ -19,6 +19,8 @@ import { CustomerPortalPage } from "./components/pages/CustomerPortalPage";
 import { LandingPage } from "./components/pages/LandingPage";
 import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { BuilderPage } from "./components/pages/BuilderPage";
+import { RegisterScreen } from "./components/auth/RegisterScreen";
+import { CustomerDashboard } from "./components/pages/CustomerDashboard";
 
 // Custom Hooks
 import { useAuth } from "./hooks/useAuth";
@@ -107,6 +109,7 @@ function App() {
           <Routes>
             <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
             <Route path="/builder" element={<BuilderPage />} />
+            <Route path="/register" element={<RegisterScreen onRegister={setSession} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
@@ -157,6 +160,8 @@ function App() {
               <Routes location={location}>
                 <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
                 <Route path="/builder" element={<BuilderPage />} />
+                <Route path="/register" element={<RegisterScreen onRegister={setSession} />} />
+                <Route path="/customer" element={session.user.role === "customer" ? <CustomerDashboard /> : <Navigate to="/dashboard" replace />} />
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/products" element={<ProductCatalogPage />} />
                 <Route path="/dashboard" element={canAccessRoute(session.user, "dashboard") ? <DashboardPage /> : <Navigate to="/quotes" replace />} />
@@ -252,7 +257,7 @@ function App() {
                     <PlatformAdminPage currentUser={session.user} />
                   ) : <Navigate to="/quotes" replace />
                 } />
-                <Route path="*" element={<Navigate to="/quotes" replace />} />
+                <Route path="*" element={<Navigate to={session.user.role === "customer" ? "/customer" : "/quotes"} replace />} />
               </Routes>
             </motion.div>
           </AnimatePresence>
