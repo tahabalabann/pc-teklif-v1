@@ -18,6 +18,7 @@ import { ProductCatalogPage } from "./components/pages/ProductCatalogPage";
 import { CustomerPortalPage } from "./components/pages/CustomerPortalPage";
 import { LandingPage } from "./components/pages/LandingPage";
 import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
+import { BuilderPage } from "./components/pages/BuilderPage";
 
 // Custom Hooks
 import { useAuth } from "./hooks/useAuth";
@@ -105,6 +106,7 @@ function App() {
           <Toaster position="bottom-right" toastOptions={{ duration: 4000, className: "backdrop-blur-xl bg-white/90 shadow-elevated border border-ink-100 dark:bg-slate-900/90 dark:border-slate-800 dark:text-white" }} />
           <Routes>
             <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
+            <Route path="/builder" element={<BuilderPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
@@ -154,6 +156,7 @@ function App() {
             >
               <Routes location={location}>
                 <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
+                <Route path="/builder" element={<BuilderPage />} />
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/products" element={<ProductCatalogPage />} />
                 <Route path="/dashboard" element={canAccessRoute(session.user, "dashboard") ? <DashboardPage /> : <Navigate to="/quotes" replace />} />

@@ -38,7 +38,7 @@ export const LandingPage = () => {
           
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
             <a href="#systems" className="hover:text-white transition-colors">Hazır Sistemler</a>
-            <a href="#builder" className="hover:text-white transition-colors">Sistem Topla</a>
+            <Link to="/builder" className="hover:text-white transition-colors">Sistem Topla</Link>
             <a href="#process" className="hover:text-white transition-colors">Nasıl Çalışır?</a>
           </div>
 
@@ -80,13 +80,13 @@ export const LandingPage = () => {
             </p>
             
             <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
-              <button className="group relative px-8 py-4 bg-amber-500 text-black rounded-full font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-xl shadow-amber-500/20">
+              <Link to="/builder" className="group relative px-8 py-4 bg-amber-500 text-black rounded-full font-bold text-lg overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-xl shadow-amber-500/20">
                 <span className="relative z-10 flex items-center gap-2">
                   Kendi Sistemini Topla
                   <ChevronRightIcon className="w-5 h-5 transition-transform group-hover:translate-x-1" />
                 </span>
                 <div className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-600 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              </button>
+              </Link>
               
               <a href="#systems" className="px-8 py-4 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 font-bold transition-all">
                 Hazır Sistemleri İncele
