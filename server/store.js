@@ -200,8 +200,8 @@ export async function createUser({ name, email, password, role, companyId, actor
         ${passwordData.salt},
         ${companyId || null},
         ${0},
-        ${0},
-        ${1}
+        ${false},
+        ${true}
       )
     `,
   );
