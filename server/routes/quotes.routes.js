@@ -14,6 +14,9 @@ import {
 } from "../store.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { eventBus } from "../utils/EventBus.js";
+import { sendEmail, emailTemplates } from "../utils/email.js";
+import { prisma } from "../db.js";
+import { Prisma as PrismaBase } from "@prisma/client";
 
 const publicQuoteRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -37,6 +40,26 @@ quotesRouter.put("/:id", requireAuth, async (req, res) => {
 
   try {
     const savedQuote = await saveQuoteForUser(req.user, { ...quote, id: req.params.id });
+    
+    // Check for status change and notify
+    try {
+      const oldQuoteRows = await prisma.$queryRaw(
+        PrismaBase.sql`SELECT "data" FROM "Quote" WHERE "id" = ${req.params.id} LIMIT 1`
+      );
+      if (oldQuoteRows[0]) {
+        const oldData = JSON.parse(oldQuoteRows[0].data);
+        if (oldData.status !== savedQuote.status) {
+          const template = emailTemplates.quoteUpdate(savedQuote.customerName, savedQuote.quoteNo, savedQuote.status);
+          await sendEmail({
+            to: savedQuote.customerEmail,
+            ...template
+          });
+        }
+      }
+    } catch (mailError) {
+      console.error("Quote status email failed:", mailError);
+    }
+
     eventBus.broadcast("quote_saved", { quoteId: savedQuote.id, companyId: savedQuote.companyId });
     return res.json({ quote: savedQuote });
   } catch (error) {

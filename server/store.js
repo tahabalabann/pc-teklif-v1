@@ -173,6 +173,40 @@ export async function updateOrganizationForUser(currentUser, settings) {
   return getOrganizationForUser(currentUser);
 }
 
+export async function createPasswordResetToken(email) {
+  const userRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "User" WHERE "email" = ${email} LIMIT 1`
+  );
+  if (!userRows[0]) return null;
+
+  const token = randomUUID();
+  const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour
+
+  await prisma.$executeRaw(
+    Prisma.sql`UPDATE "User" SET "resetToken" = ${token}, "resetTokenExpires" = ${expiresAt} WHERE "id" = ${userRows[0].id}`
+  );
+
+  return token;
+}
+
+export async function resetPasswordWithToken(token, newPasswordHash, salt) {
+  const userRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id" FROM "User" WHERE "resetToken" = ${token} AND "resetTokenExpires" > ${new Date().toISOString()} LIMIT 1`
+  );
+  if (!userRows[0]) throw new Error("Geçersiz veya süresi dolmuş token.");
+
+  await prisma.$executeRaw(
+    Prisma.sql`
+      UPDATE "User" 
+      SET "passwordHash" = ${newPasswordHash}, "passwordSalt" = ${salt}, "resetToken" = NULL, "resetTokenExpires" = NULL 
+      WHERE "id" = ${userRows[0].id}
+    `
+  );
+
+  return true;
+}
+
+
 export async function createUser({ name, email, password, role, companyId, actorUser = null }) {
   const normalizedEmail = email.toLowerCase();
   const existingRows = await prisma.$queryRaw(

@@ -61,7 +61,10 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
               />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-sm font-semibold text-ink-700">Parola</span>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="block text-sm font-semibold text-ink-700">Parola</span>
+                <Link to="/forgot-password" className="text-xs font-bold text-orange-600 hover:underline">Şifremi Unuttum</Link>
+              </div>
               <input
                 className="w-full rounded-xl border border-ink-200 bg-white/50 px-4 py-3 text-sm text-ink-900 outline-none transition-all placeholder:text-ink-400 focus:border-orange-500 focus:bg-white focus:ring-4 focus:ring-orange-500/10"
                 type="password"

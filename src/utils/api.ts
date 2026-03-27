@@ -80,6 +80,16 @@ export const authApi = {
     await apiRequest<{ ok: true }>("/api/auth/logout", { method: "POST" });
     sessionStorageApi.clearToken();
   },
+  forgotPassword: (email: string) =>
+    apiRequest<{ ok: true; message: string }>("/api/auth/forgot-password", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+  resetPassword: (payload: { token: string; password: string }) =>
+    apiRequest<{ ok: true; message: string }>("/api/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
 
 export const usersApi = {

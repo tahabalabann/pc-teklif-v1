@@ -21,6 +21,8 @@ import { PrintQuoteDocument } from "./components/quote/PrintQuoteDocument";
 import { BuilderPage } from "./components/pages/BuilderPage";
 import { RegisterScreen } from "./components/auth/RegisterScreen";
 import { CustomerDashboard } from "./components/pages/CustomerDashboard";
+import { ForgotPasswordScreen } from "./components/auth/ForgotPasswordScreen";
+import { ResetPasswordScreen } from "./components/auth/ResetPasswordScreen";
 
 // Custom Hooks
 import { useAuth } from "./hooks/useAuth";
@@ -102,6 +104,8 @@ function App() {
   const isLanding = location.pathname === "/";
   const isRegister = location.pathname === "/register";
   const isBuilder = location.pathname === "/builder";
+  const isForgot = location.pathname === "/forgot-password";
+  const isReset = location.pathname === "/reset-password";
 
   if (!session) {
     if (isPortal || isRegister || isBuilder) {
@@ -112,6 +116,8 @@ function App() {
             <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
             <Route path="/builder" element={<BuilderPage />} />
             <Route path="/register" element={<RegisterScreen onRegister={setSession} />} />
+            <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+            <Route path="/reset-password" element={<ResetPasswordScreen />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
@@ -126,6 +132,9 @@ function App() {
         </>
       );
     }
+
+    if (isForgot) return <ForgotPasswordScreen />;
+    if (isReset) return <ResetPasswordScreen />;
 
     return <LoginScreen onLogin={handleLogin} />;
   }
