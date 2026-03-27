@@ -1,14 +1,37 @@
+import { useEffect, useState } from "react";
 import { 
   RocketLaunchIcon, 
   CpuChipIcon, 
   ClockIcon,
-  ChatBubbleBottomCenterTextIcon
+  ChatBubbleBottomCenterTextIcon,
+  ArrowTopRightOnSquareIcon
 } from "@heroicons/react/24/outline";
 import { Link } from "react-router-dom";
 import { useAppStore } from "../../store/useAppStore";
+import { quotesApi } from "../../utils/api";
+import type { Quote } from "../../types/quote";
+import { formatCurrency } from "../../utils/money";
 
 export function CustomerDashboard() {
   const user = useAppStore((state) => state.session?.user);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    void loadQuotes();
+  }, []);
+
+  const loadQuotes = async () => {
+    try {
+      setLoading(true);
+      const data = await quotesApi.list();
+      setQuotes(data);
+    } catch (err) {
+      console.error("Failed to load quotes:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-12">
@@ -44,13 +67,62 @@ export function CustomerDashboard() {
             <span className="text-sm text-slate-500">Tümünü Gör</span>
           </div>
 
-          <div className="bg-white/5 border border-white/5 rounded-3xl p-12 text-center">
-            <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <CpuChipIcon className="w-8 h-8 text-slate-700" />
+          {loading ? (
+            <div className="bg-white/5 border border-white/5 rounded-3xl p-12 text-center animate-pulse">
+              <p className="text-slate-500">Talepleriniz yükleniyor...</p>
             </div>
-            <h3 className="text-lg font-bold text-slate-400">Henüz bir talebiniz bulunmuyor.</h3>
-            <p className="text-slate-500 mt-2">Sihirbazı kullanarak ilk sistem yapılandırmanızı oluşturabilirsiniz.</p>
-          </div>
+          ) : quotes.length === 0 ? (
+            <div className="bg-white/5 border border-white/5 rounded-3xl p-12 text-center">
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <CpuChipIcon className="w-8 h-8 text-slate-700" />
+              </div>
+              <h3 className="text-lg font-bold text-slate-400">Henüz bir talebiniz bulunmuyor.</h3>
+              <p className="text-slate-500 mt-2">Sihirbazı kullanarak ilk sistem yapılandırmanızı oluşturabilirsiniz.</p>
+            </div>
+          ) : (
+            <div className="bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-white/5 bg-white/5">
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Teklif No</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Tarih</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Durum</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">Tutar</th>
+                      <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500 text-right">İşlem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {quotes.map((quote) => (
+                      <tr key={quote.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 font-mono text-sm text-amber-500 font-bold">{quote.quoteNo}</td>
+                        <td className="px-6 py-4 text-sm text-slate-400">{quote.date}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                            quote.status === "Onaylandı" ? "bg-emerald-500/20 text-emerald-500" :
+                            quote.status === "Reddedildi" ? "bg-red-500/20 text-red-500" :
+                            "bg-amber-500/20 text-amber-500"
+                          }`}>
+                            {quote.status}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-sm font-black text-right">{formatCurrency(quote.salesPrice)}</td>
+                        <td className="px-6 py-4 text-right">
+                          <Link 
+                            to={`/portal/quote/${quote.id}`}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-amber-500 hover:text-black rounded-lg text-xs font-bold transition-all"
+                          >
+                            Görüntüle
+                            <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Support & Quick Actions */}

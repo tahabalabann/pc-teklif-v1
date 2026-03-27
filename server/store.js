@@ -1276,7 +1276,9 @@ export async function saveQuoteForUser(user, quote) {
     createdAt: quote.createdAt || now,
   };
 
-  await assertOwnedByCompanyOrThrow("Quote", payload.id, user.companyId, "Bu teklif başka bir firmaya ait olduğu için güncellenemez.");
+  if (user.companyId) {
+    await assertOwnedByCompanyOrThrow("Quote", payload.id, user.companyId, "Bu teklif başka bir firmaya ait olduğu için güncellenemez.");
+  }
 
   const existingRows = await prisma.$queryRaw(
     Prisma.sql`SELECT "id" FROM "Quote" WHERE "id" = ${payload.id} LIMIT 1`
@@ -1317,6 +1319,61 @@ export async function deleteQuoteForUser(user, quoteId) {
   }
 
   await prisma.$executeRaw(Prisma.sql`DELETE FROM "Quote" WHERE "id" = ${quoteId}`);
+}
+
+export async function createQuoteFromBuilder(user, selections) {
+  const now = new Date().toISOString();
+  const quoteId = randomUUID();
+  const quoteNo = `PC-${Date.now().toString().slice(-6)}`;
+  
+  // selections is a map of category -> productId
+  const productIds = Object.values(selections);
+  const products = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id", "data" FROM "ProductCatalogEntry" WHERE "id" IN (${Prisma.join(productIds)})`
+  );
+
+  const rows = products.map(p => {
+    const data = JSON.parse(p.data);
+    return {
+      id: randomUUID(),
+      catalogItemId: p.id,
+      name: data.name,
+      quantity: 1,
+      purchasePrice: Number(data.purchasePrice || 0),
+      purchaseCurrency: data.purchaseCurrency || "USD",
+      salePrice: Number(data.salePrice || 0),
+      saleCurrency: data.saleCurrency || "USD",
+      imageUrl: data.imageUrl || ""
+    };
+  });
+
+  const totalSale = rows.reduce((sum, r) => sum + Number(r.salePrice || 0), 0);
+
+  const quote = {
+    id: quoteId,
+    quoteNo,
+    ownerUserId: user.id,
+    customerName: user.name,
+    customerEmail: user.email,
+    status: "Beklemede",
+    date: now.split("T")[0],
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
+    rows,
+    salesPrice: totalSale,
+    saleCurrency: "USD", // Default
+    notes: "PC Builder üzerinden oluşturuldu.",
+    createdAt: now,
+    updatedAt: now
+  };
+
+  await prisma.$executeRaw(
+    Prisma.sql`
+      INSERT INTO "Quote" ("id", "ownerUserId", "data", "createdAt", "updatedAt")
+      VALUES (${quote.id}, ${user.id}, ${JSON.stringify(quote)}, ${quote.createdAt}, ${quote.updatedAt})
+    `
+  );
+
+  return quote;
 }
 
 export async function getPublicQuoteById(id) {

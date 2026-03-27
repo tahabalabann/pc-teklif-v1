@@ -9,11 +9,13 @@ import {
   CpuChipIcon
 } from "@heroicons/react/24/outline";
 import { useBuilderStore, BUILDER_STEPS } from "../../store/useBuilderStore";
-import { productsApi } from "../../utils/api";
+import { productsApi, quotesApi } from "../../utils/api";
 import type { CatalogProduct } from "../../utils/api";
 import { formatCurrency } from "../../utils/money";
 import { Button } from "../ui/Button";
 import { toast } from "react-hot-toast";
+import { useAppStore } from "../../store/useAppStore";
+import { useNavigate } from "react-router-dom";
 
 export const BuilderPage = () => {
   const { 
@@ -50,9 +52,36 @@ export const BuilderPage = () => {
     }
   };
 
-  const handleFinish = () => {
-    toast.success("Talebiniz kaydediliyor...");
-    // Future: Logic to create a draft quote in admin panel
+  const session = useAppStore((state) => state.session);
+  const navigate = useNavigate();
+
+  const handleFinish = async () => {
+    if (!session) {
+      toast.error("Teklif talebi oluşturmak için üye girişi yapmanız gerekmektedir.");
+      navigate("/register");
+      return;
+    }
+
+    const selectionsData: Record<string, string> = {};
+    Object.entries(selections).forEach(([category, product]) => {
+      if (product) selectionsData[category] = product.id;
+    });
+
+    if (Object.keys(selectionsData).length === 0) {
+      toast.error("Lütfen en az bir parça seçin.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await quotesApi.createFromBuilder(selectionsData);
+      toast.success("Teklif talebiniz başarıyla iletildi! Yönlendiriliyorsunuz...");
+      setTimeout(() => navigate("/customer"), 2000);
+    } catch (error) {
+      toast.error("Teklif oluşturulurken bir hata oluştu.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

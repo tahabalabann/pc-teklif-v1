@@ -123,6 +123,13 @@ export const quotesApi = {
         body: JSON.stringify({ quote }),
       })
     ).quote,
+  createFromBuilder: async (selections: Record<string, string>) =>
+    (
+      await apiRequest<{ quote: Quote }>("/api/quotes/from-builder", {
+        method: "POST",
+        body: JSON.stringify({ selections }),
+      })
+    ).quote,
   delete: async (quoteId: string) => {
     await apiRequest<{ ok: true }>(`/api/quotes/${quoteId}`, { method: "DELETE" });
   },

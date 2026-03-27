@@ -8,7 +8,8 @@ import {
   updatePublicQuoteStatus,
   listProductsForUser,
   saveProductForUser,
-  deleteProductForUser
+  deleteProductForUser,
+  createQuoteFromBuilder
 } from "../store.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { eventBus } from "../utils/EventBus.js";
@@ -48,6 +49,23 @@ quotesRouter.delete("/:id", requireAuth, async (req, res) => {
   await deleteQuoteForUser(req.user, req.params.id);
   eventBus.broadcast("quote_deleted", { quoteId: req.params.id });
   return res.json({ ok: true });
+});
+
+quotesRouter.post("/from-builder", requireAuth, async (req, res) => {
+  const { selections } = req.body;
+  if (!selections || Object.keys(selections).length === 0) {
+    return res.status(400).json({ error: "Seçili parça bulunamadı." });
+  }
+
+  try {
+    const quote = await createQuoteFromBuilder(req.user, selections);
+    eventBus.broadcast("quote_created", { quoteId: quote.id, companyId: quote.companyId });
+    return res.status(201).json({ quote });
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Teklif oluşturulamadı.",
+    });
+  }
 });
 
 // Products

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Button } from "../ui/Button";
 
 interface LoginScreenProps {
@@ -93,7 +94,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
           <div className="mt-8 text-center">
             <p className="text-sm font-medium text-ink-500">
               Hesabınız yok mu?{" "}
-              <a href="/register" className="text-orange-600 font-bold hover:underline">Kaydolun</a>
+              <Link to="/register" className="text-orange-600 font-bold hover:underline">Kaydolun</Link>
             </p>
           </div>
         </div>
