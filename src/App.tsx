@@ -171,7 +171,11 @@ function App() {
               <Routes location={location}>
                 <Route path="/portal/quote/:id" element={<CustomerPortalPage />} />
                 <Route path="/builder" element={<BuilderPage />} />
-                <Route path="/register" element={<RegisterScreen onRegister={setSession} />} />
+                <Route path="/register" element={
+                  session ? (
+                    <Navigate to={session.user.role === "customer" ? "/customer" : "/quotes"} replace />
+                  ) : <RegisterScreen onRegister={setSession} />
+                } />
                 <Route path="/customer" element={session.user.role === "customer" ? <CustomerDashboard /> : <Navigate to="/dashboard" replace />} />
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/products" element={<ProductCatalogPage />} />
