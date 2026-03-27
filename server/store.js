@@ -1254,16 +1254,26 @@ export async function consumeUserBalance(userId, amount) {
 }
 
 export async function listQuotesForUser(user) {
-  const rows = await prisma.$queryRaw(
-    Prisma.sql`
+  let query;
+  if (user.isPlatformAdmin) {
+    query = Prisma.sql`SELECT "data" FROM "Quote" ORDER BY "updatedAt" DESC`;
+  } else if (user.companyId) {
+    query = Prisma.sql`
       SELECT q."data" AS "data"
       FROM "Quote" q
       JOIN "User" u ON u."id" = q."ownerUserId"
       WHERE u."companyId" = ${user.companyId}
       ORDER BY q."updatedAt" DESC
-    `,
-  );
+    `;
+  } else {
+    query = Prisma.sql`
+      SELECT "data" FROM "Quote"
+      WHERE "ownerUserId" = ${user.id}
+      ORDER BY "updatedAt" DESC
+    `;
+  }
 
+  const rows = await prisma.$queryRaw(query);
   return rows.map((row) => JSON.parse(row.data));
 }
 
