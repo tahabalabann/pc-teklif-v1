@@ -4,6 +4,9 @@ dist
 vite.config.js
 vite.config.d.ts
 .env
+.env.*
+.env.prod
+.env.local
 dev.db
 prisma/dev.db
 server/logs/
