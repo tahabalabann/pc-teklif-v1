@@ -8,6 +8,7 @@ export const roleRouteAccess: Record<AppUser["role"], AppRoute[]> = {
   shipping: ["shipping", "companies"],
   sales: ["quotes", "quote-detail", "companies", "products"],
   staff: ["quotes", "quote-detail", "shipping", "companies", "products"],
+  customer: ["customer"],
 };
 
 export function canAccessRoute(user: AppUser, route: AppRoute) {
