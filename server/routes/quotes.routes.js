@@ -7,6 +7,7 @@ import {
   getPublicQuoteById,
   updatePublicQuoteStatus,
   listProductsForUser,
+  listPublicProducts,
   saveProductForUser,
   deleteProductForUser,
   createQuoteFromBuilder
@@ -97,6 +98,15 @@ quotesRouter.delete("/products/:id", requireAuth, async (req, res) => {
 // Public endpoints mapped to root in index.js for /api/public/quotes, but kept close
 export const publicQuotesRouter = Router();
 publicQuotesRouter.use(publicQuoteRateLimit);
+
+publicQuotesRouter.get("/products", async (req, res) => {
+  try {
+    const products = await listPublicProducts();
+    return res.json({ products });
+  } catch (error) {
+    return res.status(500).json({ error: "Ürünler yüklenemedi." });
+  }
+});
 publicQuotesRouter.get("/:id", async (req, res) => {
   try {
     const quote = await getPublicQuoteById(req.params.id);

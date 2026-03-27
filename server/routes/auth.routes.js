@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { authenticateUser, createSessionForUser, deleteSession } from "../store.js";
+import { authenticateUser, createSessionForUser, deleteSession, createUser } from "../store.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 export const authRouter = Router();

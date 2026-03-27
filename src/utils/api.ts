@@ -210,6 +210,7 @@ export const uploadApi = {
 
 export const productsApi = {
   list: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/quotes/products")).products,
+  listPublic: async () => (await apiRequest<{ products: CatalogProduct[] }>("/api/public/quotes/products")).products,
   save: async (product: Partial<CatalogProduct>) =>
     (
       await apiRequest<{ product: CatalogProduct }>("/api/quotes/products", {

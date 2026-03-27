@@ -41,7 +41,7 @@ export const BuilderPage = () => {
   const loadProducts = async () => {
     try {
       setLoading(true);
-      const allProducts = await productsApi.list();
+      const allProducts = await productsApi.listPublic();
       // Filter products by current category
       const filtered = allProducts.filter(p => p.category === currentCategory);
       setProducts(filtered);

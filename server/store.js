@@ -1485,6 +1485,13 @@ async function deductStockForQuote(quote) {
   }
 }
 
+export async function listPublicProducts() {
+  const rows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "data" FROM "ProductCatalogEntry" ORDER BY "updatedAt" DESC`
+  );
+  return rows.map((row) => JSON.parse(row.data));
+}
+
 export async function listAddressBookForUser(user) {
   const rows = await prisma.$queryRaw(
     Prisma.sql`
