@@ -16,6 +16,7 @@ import { Button } from "../ui/Button";
 import { toast } from "react-hot-toast";
 import { useAppStore } from "../../store/useAppStore";
 import { useNavigate } from "react-router-dom";
+import { validateBuild, isProductCompatible, type CompatibilityWarning } from "../../utils/compatibility";
 
 export const BuilderPage = () => {
   const { 
@@ -32,7 +33,12 @@ export const BuilderPage = () => {
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [warnings, setWarnings] = useState<CompatibilityWarning[]>([]);
   const currentCategory = BUILDER_STEPS[currentStep];
+
+  useEffect(() => {
+    setWarnings(validateBuild(selections));
+  }, [selections]);
 
   useEffect(() => {
     void loadProducts();
@@ -172,6 +178,21 @@ export const BuilderPage = () => {
                         `}
                         onClick={() => selectProduct(currentCategory, product)}
                       >
+                        {(() => {
+                          const { compatible, reason } = isProductCompatible(product, selections);
+                          if (!compatible) {
+                            return (
+                              <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500 text-white text-[10px] font-black uppercase tracking-tighter shadow-lg shadow-red-500/40 border border-red-400/50 backdrop-blur-md">
+                                <ExclamationTriangleIcon className="w-3.5 h-3.5" />
+                                <span>Uyumsuz</span>
+                                <div className="absolute bottom-full right-0 mb-2 hidden group-hover/comp:block w-48 p-2 rounded-xl bg-slate-900 border border-white/10 text-[9px] normal-case tracking-normal shadow-2xl">
+                                  {reason}
+                                </div>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
                         <div className="aspect-square bg-black/40 rounded-2xl mb-4 overflow-hidden border border-white/5">
                           {product.imageUrl ? (
                             <img src={product.imageUrl} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -255,6 +276,20 @@ export const BuilderPage = () => {
                   </div>
                 ))}
               </div>
+
+              {warnings.length > 0 && (
+                <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 space-y-2 animate-pulse">
+                  <div className="flex items-center gap-2 text-red-500 mb-1">
+                    <ExclamationTriangleIcon className="w-5 h-5" />
+                    <span className="text-xs font-black uppercase tracking-wider">Uyumluluk Uyarısı</span>
+                  </div>
+                  {warnings.map((w, idx) => (
+                    <p key={idx} className="text-[11px] leading-relaxed text-red-200">
+                      • {w.message}
+                    </p>
+                  ))}
+                </div>
+              )}
 
               <div className="pt-6 border-t border-white/10 space-y-4">
                 <div className="flex items-center justify-between">
