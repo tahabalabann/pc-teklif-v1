@@ -193,7 +193,7 @@ export function StorefrontManager() {
           <div className="mt-4 flex gap-3">
             <Button type="submit" variant="primary">
               <PlusIcon className="mr-2 h-4 w-4" />
-              {editingId ? "Güncelle" : "Vitre Ekle"}
+              {editingId ? "Güncelle" : "Vitrine Ekle"}
             </Button>
             {editingId && (
               <Button type="button" variant="secondary" onClick={handleCancel}>
