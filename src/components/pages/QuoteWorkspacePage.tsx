@@ -55,7 +55,7 @@ export function QuoteWorkspacePage({
 
   return (
     <div className="space-y-6">
-      <Card className="sticky top-[80px] z-10 p-5 ring-1 ring-white/20 print:hidden shadow-sm">
+      <Card className="lg:sticky lg:top-[80px] z-10 p-4 sm:p-5 ring-1 ring-white/20 print:hidden shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div className="mr-auto">
             <p className="panel-label">Teklifler / Detay</p>
