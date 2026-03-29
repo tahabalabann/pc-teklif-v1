@@ -48,7 +48,7 @@ export function useAuth() {
     if (session) {
       const cleanup = initRealtime();
       return () => {
-        if (typeof cleanup === "function") (cleanup as any)();
+        if (cleanup) cleanup();
       };
     }
   }, [session, initRealtime]);

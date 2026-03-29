@@ -176,8 +176,9 @@ export async function updateOrganizationForUser(currentUser, settings) {
 }
 
 export async function createPasswordResetToken(email) {
+  const normalizedEmail = email.toLowerCase();
   const userRows = await prisma.$queryRaw(
-    Prisma.sql`SELECT "id" FROM "User" WHERE "email" = ${email} LIMIT 1`
+    Prisma.sql`SELECT "id" FROM "User" WHERE "email" = ${normalizedEmail} LIMIT 1`
   );
   if (!userRows[0]) return null;
 
@@ -508,7 +509,7 @@ export async function deleteOrganizationAsPlatformAdmin(organizationId) {
     Prisma.sql`
       SELECT COUNT(*) AS "count"
       FROM "User"
-      WHERE "companyId" = ${organizationId} AND "isPlatformAdmin" = 1
+      WHERE "companyId" = ${organizationId} AND "isPlatformAdmin" = true
     `,
   );
 
@@ -517,7 +518,7 @@ export async function deleteOrganizationAsPlatformAdmin(organizationId) {
   }
 
   await prisma.$executeRaw(
-    Prisma.sql`UPDATE "Organization" SET "isActive" = ${0} WHERE "id" = ${organizationId}`,
+    Prisma.sql`UPDATE "Organization" SET "isActive" = ${false} WHERE "id" = ${organizationId}`,
   );
 }
 
@@ -531,7 +532,7 @@ export async function toggleOrganizationActiveAsPlatformAdmin(organizationId, is
   }
 
   await prisma.$executeRaw(
-    Prisma.sql`UPDATE "Organization" SET "isActive" = ${isActive ? 1 : 0} WHERE "id" = ${organizationId}`,
+    Prisma.sql`UPDATE "Organization" SET "isActive" = ${isActive} WHERE "id" = ${organizationId}`,
   );
 
   const summaries = await listOrganizationsForPlatformAdmin();
@@ -585,7 +586,7 @@ export async function deleteUserForAdmin(currentUser, targetUserId) {
   }
 
   await prisma.$executeRaw(
-    Prisma.sql`UPDATE "User" SET "isActive" = ${0} WHERE "id" = ${targetUserId}`,
+    Prisma.sql`UPDATE "User" SET "isActive" = ${false} WHERE "id" = ${targetUserId}`,
   );
   await createAuditLog({
     companyId: currentUser.companyId,
@@ -625,7 +626,7 @@ export async function toggleUserActiveForAdmin(currentUser, targetUserId, isActi
   }
 
   await prisma.$executeRaw(
-    Prisma.sql`UPDATE "User" SET "isActive" = ${isActive ? 1 : 0} WHERE "id" = ${targetUserId}`,
+    Prisma.sql`UPDATE "User" SET "isActive" = ${isActive} WHERE "id" = ${targetUserId}`,
   );
 
   const userRows = await prisma.$queryRaw(
@@ -1430,7 +1431,7 @@ export async function createQuoteFromBuilder(user, selections) {
     ownerUserId: user.id,
     customerName: user.name,
     customerEmail: user.email,
-    status: "Beklemede",
+    status: "Onay Bekliyor",
     date: now.split("T")[0],
     expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     rows,

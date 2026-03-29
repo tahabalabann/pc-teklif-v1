@@ -90,7 +90,7 @@ export function RegisterScreen({ onRegister }: RegisterScreenProps) {
 
           <p className="text-center text-slate-500 mt-8 text-sm font-medium">
             Zaten hesabınız var mı?{" "}
-            <Link to="/quotes" className="text-amber-500 hover:text-amber-400 transition-colors">
+            <Link to="/login" className="text-amber-500 hover:text-amber-400 transition-colors">
               Giriş Yapın
             </Link>
           </p>

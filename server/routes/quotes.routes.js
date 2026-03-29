@@ -39,25 +39,31 @@ quotesRouter.put("/:id", requireAuth, async (req, res) => {
   }
 
   try {
-    const savedQuote = await saveQuoteForUser(req.user, { ...quote, id: req.params.id });
-    
-    // Check for status change and notify
+    // Read old quote BEFORE saving to detect status changes
+    let oldStatus = null;
     try {
       const oldQuoteRows = await prisma.$queryRaw(
         PrismaBase.sql`SELECT "data" FROM "Quote" WHERE "id" = ${req.params.id} LIMIT 1`
       );
       if (oldQuoteRows[0]) {
         const oldData = JSON.parse(oldQuoteRows[0].data);
-        if (oldData.status !== savedQuote.status) {
-          const template = emailTemplates.quoteUpdate(savedQuote.customerName, savedQuote.quoteNo, savedQuote.status);
-          await sendEmail({
-            to: savedQuote.customerEmail,
-            ...template
-          });
-        }
+        oldStatus = oldData.status;
       }
-    } catch (mailError) {
-      console.error("Quote status email failed:", mailError);
+    } catch (_) { /* ignore read errors */ }
+
+    const savedQuote = await saveQuoteForUser(req.user, { ...quote, id: req.params.id });
+    
+    // Send email notification if status changed
+    if (oldStatus && oldStatus !== savedQuote.status && savedQuote.customerEmail) {
+      try {
+        const template = emailTemplates.quoteUpdate(savedQuote.customerName, savedQuote.quoteNo, savedQuote.status);
+        await sendEmail({
+          to: savedQuote.customerEmail,
+          ...template
+        });
+      } catch (mailError) {
+        console.error("Quote status email failed:", mailError);
+      }
     }
 
     eventBus.broadcast("quote_saved", { quoteId: savedQuote.id, companyId: savedQuote.companyId });

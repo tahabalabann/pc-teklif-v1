@@ -22,10 +22,16 @@ uploadRouter.post("/", requireAuth, async (req, res, next) => {
     // Extract base64 format (e.g. data:image/png;base64,.....)
     const matches = imageBase64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
     
+    const allowedMimeTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif", "image/svg+xml"];
+    
     let buffer;
     let ext = ".png"; // Default fallback extension
 
     if (matches && matches.length === 3) {
+      const mimeType = matches[1];
+      if (!allowedMimeTypes.includes(mimeType)) {
+        return res.status(400).json({ error: "Geçersiz dosya türü. Sadece görsel dosyalar yüklenebilir (PNG, JPEG, WebP, GIF, SVG)." });
+      }
       buffer = Buffer.from(matches[2], "base64");
     } else {
       buffer = Buffer.from(imageBase64, "base64");

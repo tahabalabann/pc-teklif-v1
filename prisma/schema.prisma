@@ -38,6 +38,8 @@ model User {
   company           Organization?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
   isPlatformAdmin   Boolean        @default(false)
   isActive          Boolean        @default(true)
+  resetToken        String?
+  resetTokenExpires String?
   quotes            Quote[]
   addressBook       AddressBookEntry[]
   senderAddressBook SenderAddressBookEntry[]

@@ -1,12 +1,20 @@
 import { randomUUID } from "node:crypto";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
 import { hashPassword } from "./store.js";
 
-async function ensureColumn(tableName, columnName, columnType) {
-  const columns = await prisma.$queryRawUnsafe(`PRAGMA table_info("${tableName}")`);
-  const exists = columns.some((column) => column.name === columnName);
+async function ensureColumn(tableName, columnName, columnType, defaultValue) {
+  const result = await prisma.$queryRawUnsafe(
+    `SELECT column_name FROM information_schema.columns WHERE table_name = $1 AND column_name = $2`,
+    tableName,
+    columnName,
+  );
+  const exists = Array.isArray(result) && result.length > 0;
   if (!exists) {
-    await prisma.$executeRawUnsafe(`ALTER TABLE "${tableName}" ADD COLUMN "${columnName}" ${columnType}`);
+    const defaultClause = defaultValue !== undefined ? ` DEFAULT ${defaultValue}` : "";
+    await prisma.$executeRawUnsafe(
+      `ALTER TABLE "${tableName}" ADD COLUMN IF NOT EXISTS "${columnName}" ${columnType}${defaultClause}`,
+    );
   }
 }
 
@@ -27,7 +35,7 @@ async function ensureSchema() {
   await ensureColumn("Organization", "paymentAccountName", "TEXT");
   await ensureColumn("Organization", "paymentIban", "TEXT");
   await ensureColumn("Organization", "notes", "TEXT");
-  await ensureColumn("Organization", "isActive", "INTEGER NOT NULL DEFAULT 1");
+  await ensureColumn("Organization", "isActive", "BOOLEAN NOT NULL", "true");
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "User" (
@@ -42,9 +50,11 @@ async function ensureSchema() {
   `);
 
   await ensureColumn("User", "companyId", "TEXT");
-  await ensureColumn("User", "balance", "REAL NOT NULL DEFAULT 0");
-  await ensureColumn("User", "isPlatformAdmin", "INTEGER NOT NULL DEFAULT 0");
-  await ensureColumn("User", "isActive", "INTEGER NOT NULL DEFAULT 1");
+  await ensureColumn("User", "balance", "DOUBLE PRECISION NOT NULL", "0");
+  await ensureColumn("User", "isPlatformAdmin", "BOOLEAN NOT NULL", "false");
+  await ensureColumn("User", "isActive", "BOOLEAN NOT NULL", "true");
+  await ensureColumn("User", "resetToken", "TEXT");
+  await ensureColumn("User", "resetTokenExpires", "TEXT");
 
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "Quote" (
@@ -120,7 +130,7 @@ async function ensureSchema() {
     CREATE TABLE IF NOT EXISTS "DepositRequest" (
       "id" TEXT NOT NULL PRIMARY KEY,
       "requesterUserId" TEXT NOT NULL,
-      "amount" REAL NOT NULL,
+      "amount" DOUBLE PRECISION NOT NULL,
       "note" TEXT NOT NULL,
       "status" TEXT NOT NULL,
       "approvedByUserId" TEXT,
@@ -148,8 +158,8 @@ async function ensureSchema() {
       "userId" TEXT NOT NULL,
       "companyId" TEXT NOT NULL,
       "type" TEXT NOT NULL,
-      "amount" REAL NOT NULL,
-      "balanceAfter" REAL NOT NULL,
+      "amount" DOUBLE PRECISION NOT NULL,
+      "balanceAfter" DOUBLE PRECISION NOT NULL,
       "note" TEXT NOT NULL,
       "createdAt" TEXT NOT NULL,
       "createdByUserId" TEXT,
@@ -172,12 +182,23 @@ async function ensureSchema() {
       "createdAt" TEXT NOT NULL
     );
   `);
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "ProductCatalogEntry" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "ownerUserId" TEXT NOT NULL,
+      "data" TEXT NOT NULL,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL,
+      CONSTRAINT "ProductCatalogEntry_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+  `);
 }
 
 async function getOrCreateDefaultOrganization() {
   const defaultName = process.env.ADMIN_COMPANY_NAME || "Balaban Bilgisayar";
-  const existingRows = await prisma.$queryRawUnsafe(
-    `SELECT "id", "name", "createdAt" FROM "Organization" ORDER BY "createdAt" ASC LIMIT 1`,
+  const existingRows = await prisma.$queryRaw(
+    Prisma.sql`SELECT "id", "name", "createdAt" FROM "Organization" ORDER BY "createdAt" ASC LIMIT 1`,
   );
 
   if (existingRows[0]) {
@@ -197,21 +218,11 @@ async function getOrCreateDefaultOrganization() {
     createdAt: new Date().toISOString(),
   };
 
-  await prisma.$executeRawUnsafe(
-    `
+  await prisma.$executeRaw(
+    Prisma.sql`
       INSERT INTO "Organization" ("id", "name", "logoUrl", "phone", "email", "address", "sellerInfo", "paymentAccountName", "paymentIban", "createdAt")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (${organization.id}, ${organization.name}, ${organization.logoUrl}, ${organization.phone}, ${organization.email}, ${organization.address}, ${organization.sellerInfo}, ${organization.paymentAccountName}, ${organization.paymentIban}, ${organization.createdAt})
     `,
-    organization.id,
-    organization.name,
-    organization.logoUrl,
-    organization.phone,
-    organization.email,
-    organization.address,
-    organization.sellerInfo,
-    organization.paymentAccountName,
-    organization.paymentIban,
-    organization.createdAt,
   );
 
   return organization;
@@ -221,16 +232,15 @@ export async function ensureSeedAdmin() {
   await ensureSchema();
   const organization = await getOrCreateDefaultOrganization();
 
-  await prisma.$executeRawUnsafe(
-    `
+  await prisma.$executeRaw(
+    Prisma.sql`
       UPDATE "User"
-      SET "companyId" = ?
+      SET "companyId" = ${organization.id}
       WHERE "companyId" IS NULL OR TRIM("companyId") = ''
     `,
-    organization.id,
   );
 
-  const rows = await prisma.$queryRawUnsafe(`SELECT COUNT(*) AS "count" FROM "User"`);
+  const rows = await prisma.$queryRaw(Prisma.sql`SELECT COUNT(*) AS "count" FROM "User"`);
   const count = Number(rows[0]?.count || 0);
   if (count > 0) {
     return;
@@ -249,20 +259,10 @@ export async function ensureSeedAdmin() {
   const now = new Date().toISOString();
   const passwordData = hashPassword(password);
 
-  await prisma.$executeRawUnsafe(
-    `
-      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin")
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  await prisma.$executeRaw(
+    Prisma.sql`
+      INSERT INTO "User" ("id", "name", "email", "role", "createdAt", "passwordHash", "passwordSalt", "companyId", "balance", "isPlatformAdmin", "isActive")
+      VALUES (${randomUUID()}, ${name}, ${email.toLowerCase()}, ${"admin"}, ${now}, ${passwordData.hash}, ${passwordData.salt}, ${organization.id}, ${0}, ${true}, ${true})
     `,
-    randomUUID(),
-    name,
-    email.toLowerCase(),
-    "admin",
-    now,
-    passwordData.hash,
-    passwordData.salt,
-    organization.id,
-    0,
-    1,
   );
 }

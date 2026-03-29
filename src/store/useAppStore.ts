@@ -16,7 +16,7 @@ interface AppState {
   setRates: (rates: { TRY: number; USD: number; EUR: number; GBP: number } | null) => void;
   fetchRates: () => Promise<void>;
   logout: () => void;
-  initRealtime: () => void;
+  initRealtime: () => (() => void) | undefined;
 }
 
 export const useAppStore = create<AppState>()(
@@ -43,8 +43,9 @@ export const useAppStore = create<AppState>()(
       },
       logout: () => set({ session: null, route: "quotes" }),
       initRealtime: () => {
+        // Import sessionStorageApi to use the same token key as the rest of the app
         const token = window.localStorage.getItem("pc-teklif:sessionToken");
-        if (!token) return;
+        if (!token) return undefined;
 
         const eventSource = new EventSource(`/api/notifications/stream?token=${token}`);
         
@@ -62,11 +63,15 @@ export const useAppStore = create<AppState>()(
 
             if (type === "quote_status_updated") {
                toast(`Teklif durumu güncellendi: ${data.status}`, { icon: "🔔" });
-               // Trigger a refresh in quote store if needed (this is a bit decoupled but works)
             }
           } catch (e) {
             console.error("Realtime parse error", e);
           }
+        };
+
+        eventSource.onerror = () => {
+          // Silently handle SSE connection errors (e.g. when auth token is invalid/expired)
+          eventSource.close();
         };
 
         return () => eventSource.close();
