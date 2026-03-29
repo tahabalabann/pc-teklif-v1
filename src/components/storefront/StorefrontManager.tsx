@@ -74,15 +74,18 @@ export function StorefrontManager() {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error("Kayıt işlemi başarısız");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || "Kayıt işlemi başarısız");
+      }
 
       toast.success("Sistem vitrine başarıyla kaydedildi.");
       setFormData({ name: "", category: "", price: "", badge: "", specsText: "" });
       setEditingId(null);
       await loadSystems();
-    } catch (err) {
-      toast.error("Bir hata oluştu.");
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err.message || "Bir hata oluştu.");
+      console.error("Save error:", err);
     }
   };
 
