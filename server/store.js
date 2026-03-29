@@ -1336,10 +1336,7 @@ export async function saveQuoteForUser(user, quote) {
     }
   }
 
-  if (user.companyId) {
-    await assertOwnedByCompanyOrThrow("Quote", payload.id, user.companyId, "Bu teklif başka bir firmaya ait olduğu için güncellenemez.");
-  }
-
+  await assertOwnedByRecordOwnerOrThrow("Quote", payload.id, user, "Bu teklif size veya firmanıza ait değil.");
   const existingRows = await prisma.$queryRaw(
     Prisma.sql`SELECT "id" FROM "Quote" WHERE "id" = ${payload.id} LIMIT 1`
   );
@@ -1390,8 +1387,14 @@ export async function saveQuoteForUser(user, quote) {
 
 export async function deleteQuoteForUser(user, quoteId) {
   const row = await getOwnerScopedRow("Quote", quoteId);
-  if (!row || row.companyId !== user.companyId) {
-    return;
+  if (!row) return;
+
+  if (!user.isPlatformAdmin) {
+    if (user.companyId) {
+      if (row.companyId !== user.companyId) return;
+    } else {
+      if (row.ownerUserId !== user.id) return;
+    }
   }
 
   await prisma.$executeRaw(Prisma.sql`DELETE FROM "Quote" WHERE "id" = ${quoteId}`);
@@ -2091,10 +2094,16 @@ async function getOwnerScopedRow(tableName, recordId) {
   return rows[0] || null;
 }
 
-async function assertOwnedByCompanyOrThrow(tableName, recordId, companyId, message) {
+async function assertOwnedByRecordOwnerOrThrow(tableName, recordId, user, message) {
   const row = await getOwnerScopedRow(tableName, recordId);
-  if (row && row.companyId !== companyId) {
-    throw new Error(message);
+  if (!row) return;
+  
+  if (user.isPlatformAdmin) return;
+  
+  if (user.companyId) {
+    if (row.companyId !== user.companyId) throw new Error(message);
+  } else {
+    if (row.ownerUserId !== user.id) throw new Error(message);
   }
 }
 
@@ -2131,7 +2140,7 @@ export async function saveProductForUser(user, product) {
     updatedAt: now,
   };
 
-  await assertOwnedByCompanyOrThrow("ProductCatalogEntry", payload.id, user.companyId, "Bu ürün başka bir firmaya ait.");
+  await assertOwnedByRecordOwnerOrThrow("ProductCatalogEntry", payload.id, user, "Bu ürün başka bir firmaya ait.");
 
   const existingRows = await prisma.$queryRaw(
     Prisma.sql`SELECT "id" FROM "ProductCatalogEntry" WHERE "id" = ${payload.id} LIMIT 1`
@@ -2158,8 +2167,14 @@ export async function saveProductForUser(user, product) {
 
 export async function deleteProductForUser(user, productId) {
   const row = await getOwnerScopedRow("ProductCatalogEntry", productId);
-  if (!row || row.companyId !== user.companyId) {
-    return;
+  if (!row) return;
+
+  if (!user.isPlatformAdmin) {
+    if (user.companyId) {
+      if (row.companyId !== user.companyId) return;
+    } else {
+      if (row.ownerUserId !== user.id) return;
+    }
   }
 
   await prisma.$executeRaw(Prisma.sql`DELETE FROM "ProductCatalogEntry" WHERE "id" = ${productId}`);
