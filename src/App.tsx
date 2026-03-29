@@ -107,6 +107,15 @@ function App() {
   const isForgot = location.pathname === "/forgot-password";
   const isReset = location.pathname === "/reset-password";
 
+  if (isLanding) {
+    return (
+      <div className={`min-h-screen transition-colors duration-500 ${theme === "dark" ? "theme-dark bg-[#000000]" : "bg-slate-50"}`}>
+        <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
+        <LandingPage />
+      </div>
+    );
+  }
+
   if (!session) {
     if (isPortal || isRegister || isBuilder) {
       return (
@@ -123,16 +132,6 @@ function App() {
         </div>
       );
     }
-    
-    if (isLanding) {
-      return (
-        <>
-          <Toaster position="bottom-right" />
-          <LandingPage />
-        </>
-      );
-    }
-
     if (isForgot) return <ForgotPasswordScreen />;
     if (isReset) return <ResetPasswordScreen />;
 
@@ -177,7 +176,7 @@ function App() {
                   ) : <RegisterScreen onRegister={setSession} />
                 } />
                 <Route path="/customer" element={session.user.role === "customer" ? <CustomerDashboard /> : <Navigate to="/dashboard" replace />} />
-                <Route path="/" element={<LandingPage />} />
+                <Route path="/" element={<Navigate to={canAccessRoute(session.user, "dashboard") ? "/dashboard" : "/quotes"} replace />} />
                 <Route path="/products" element={<ProductCatalogPage />} />
                 <Route path="/dashboard" element={canAccessRoute(session.user, "dashboard") ? <DashboardPage /> : <Navigate to="/quotes" replace />} />
                 <Route path="/quotes" element={
