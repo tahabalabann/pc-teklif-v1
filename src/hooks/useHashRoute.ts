@@ -10,7 +10,8 @@ export type AppRoute =
   | "accounting"
   | "settings"
   | "platform"
-  | "customer";
+  | "customer"
+  | "storefront";
 
 const validRoutes: AppRoute[] = [
   "quotes",
@@ -23,6 +24,7 @@ const validRoutes: AppRoute[] = [
   "settings",
   "platform",
   "customer",
+  "storefront",
 ];
 
 function normalizeRoute(hash: string): AppRoute {

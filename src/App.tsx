@@ -23,6 +23,7 @@ import { RegisterScreen } from "./components/auth/RegisterScreen";
 import { CustomerDashboard } from "./components/pages/CustomerDashboard";
 import { ForgotPasswordScreen } from "./components/auth/ForgotPasswordScreen";
 import { ResetPasswordScreen } from "./components/auth/ResetPasswordScreen";
+import { StorefrontManager } from "./components/storefront/StorefrontManager";
 
 // Custom Hooks
 import { useAuth } from "./hooks/useAuth";
@@ -270,6 +271,11 @@ function App() {
                   session.user.isPlatformAdmin ? (
                     <PlatformAdminPage currentUser={session.user} />
                   ) : <Navigate to="/quotes" replace />
+                } />
+                <Route path="/storefront" element={
+                  canAccessRoute(session.user, "storefront") ? (
+                    <StorefrontManager />
+                  ) : <Navigate to="/dashboard" replace />
                 } />
                 <Route path="*" element={<Navigate to={session.user.role === "customer" ? "/customer" : "/quotes"} replace />} />
               </Routes>

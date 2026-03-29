@@ -168,3 +168,14 @@ model ProductCatalogEntry {
   updatedAt   String
   user        User   @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 }
+
+model FeaturedSystem {
+  id        String @id
+  name      String
+  category  String
+  price     String
+  specs     String
+  badge     String?
+  createdAt String
+  updatedAt String
+}

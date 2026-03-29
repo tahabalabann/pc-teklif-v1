@@ -2,7 +2,7 @@ import type { AppUser } from "../types/quote";
 import type { AppRoute } from "../hooks/useHashRoute";
 
 export const roleRouteAccess: Record<AppUser["role"], AppRoute[]> = {
-  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "products", "accounting", "settings", "platform"],
+  admin: ["dashboard", "quotes", "quote-detail", "shipping", "companies", "products", "accounting", "settings", "platform", "storefront"],
   accounting: ["companies", "accounting"],
   operations: ["quotes", "quote-detail", "shipping", "companies", "products"],
   shipping: ["shipping", "companies"],

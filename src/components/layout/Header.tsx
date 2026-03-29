@@ -29,6 +29,7 @@ const routes: Array<{
   { id: "products", label: "Ürünler", allowedRoles: ["admin", "staff", "operations", "sales"] },
   { id: "accounting", label: "Muhasebe", allowedRoles: ["admin", "accounting"] },
   { id: "settings", label: "Ayarlar", allowedRoles: ["admin"] },
+  { id: "storefront", label: "Ana Sayfa Vitrin", allowedRoles: ["admin"] },
   { id: "platform", label: "Site Yönetimi", allowedRoles: ["admin"], platformOnly: true },
 ];
 

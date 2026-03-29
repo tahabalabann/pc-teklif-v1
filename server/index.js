@@ -19,6 +19,7 @@ import { companiesRouter } from "./routes/companies.routes.js";
 import { shippingRouter } from "./routes/shipping.routes.js";
 import notificationRouter from "./routes/notifications.routes.js";
 import { uploadRouter } from "./routes/upload.routes.js";
+import { storefrontRouter, publicStorefrontRouter } from "./routes/storefront.routes.js";
 import { requireAuth } from "./middlewares/auth.middleware.js";
 
 const app = express();
@@ -58,6 +59,8 @@ app.use("/api/address-book", addressRouter);
 app.use("/api/sender-address-book", senderAddressRouter);
 app.use("/api/companies", companiesRouter);
 app.use("/api/upload", uploadRouter);
+app.use("/api/storefront", storefrontRouter);
+app.use("/api/public/storefront", publicStorefrontRouter);
 app.use("/api", shippingRouter);
 app.use("/api/notifications", notificationRouter);
 

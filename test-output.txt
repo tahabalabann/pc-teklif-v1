@@ -1,0 +1,44 @@
+{
+  "targetQuotes": [
+    {
+      "id": "e17c1e75-9bc8-41dc-abac-beb417c89b8a",
+      "ownerUserId": "9dd39904-e597-471e-8a9a-a3826c73c5dc",
+      "creatorCompanyId": null,
+      "is75": false,
+      "is41": true
+    },
+    {
+      "id": "f26991b9-47e7-49bf-bf0e-445c05d3044c",
+      "ownerUserId": "8c6136e8-abbc-410f-b8d4-54745b10d5a6",
+      "creatorCompanyId": null,
+      "is75": true,
+      "is41": false
+    }
+  ],
+  "tahaId": [
+    {
+      "id": "5b7b6194-1353-4e71-8e19-242aa02f2f7c",
+      "email": "tahayasinbalaban41@gmail.com",
+      "companyId": "807ce8f6-005d-46ac-81ad-9edec819a30c",
+      "role": "admin"
+    },
+    {
+      "id": "79e9a52a-8e76-4aa4-828f-73338917ca0b",
+      "email": "tahagfxtasarimgfx@gmail.com",
+      "companyId": null,
+      "role": "customer"
+    },
+    {
+      "id": "bbe79872-d7be-4b80-9378-0e0d03a32966",
+      "email": "tahaoynuyorhy@gmail.com",
+      "companyId": null,
+      "role": "customer"
+    },
+    {
+      "id": "c2ccfab6-39f4-47f3-bf34-ccdca8de18b3",
+      "email": "tahayasinbalaban4134@gmail.com",
+      "companyId": null,
+      "role": "customer"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import type { FrontendFeaturedSystem } from "../../types/storefront";
 import { 
   CpuChipIcon, 
   ShieldCheckIcon, 
@@ -10,18 +12,22 @@ import {
 } from "@heroicons/react/24/outline";
 
 export const LandingPage = () => {
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { 
-      opacity: 1,
-      transition: { staggerChildren: 0.1 }
-    }
-  };
+  const [featuredSystems, setFeaturedSystems] = useState<FrontendFeaturedSystem[]>([]);
+  const [loadingSystems, setLoadingSystems] = useState(true);
 
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } }
-  };
+  useEffect(() => {
+    fetch("/api/public/storefront/featured-systems")
+      .then(res => res.json())
+      .then(data => {
+         const parsed = (data.systems || []).map((s: any) => ({
+           ...s,
+           specs: JSON.parse(s.specs || "[]")
+         }));
+         setFeaturedSystems(parsed);
+      })
+      .catch(err => console.error("Vitrin yüklenemedi", err))
+      .finally(() => setLoadingSystems(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-200 selection:bg-brand-500/30 font-sans">
@@ -134,42 +140,24 @@ export const LandingPage = () => {
             </Link>
           </div>
 
-          <motion.div 
-            variants={containerVariants}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-50px" }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {[
-              { 
-                name: "Alpha Plus", 
-                category: "1080p Oyun", 
-                price: "25.999", 
-                specs: ["AMD Ryzen 5 5600", "RTX 4060 8GB", "16GB 3200MHz", "512GB M.2 NVMe"],
-              },
-              { 
-                name: "Omega Master", 
-                category: "2K Yüksek FPS", 
-                price: "44.500", 
-                specs: ["Intel Core i5-13400F", "RTX 4070 12GB", "32GB 6000MHz DDR5", "1TB M.2 Gen4"],
-                badge: "Çok Satan"
-              },
-              { 
-                name: "Titan Workstation", 
-                category: "Profesyonel & 4K", 
-                price: "115.000", 
-                specs: ["AMD Ryzen 9 7950X", "RTX 4090 24GB", "64GB 6400MHz DDR5", "2TB M.2 Gen4"],
-              }
-            ].map((system, i) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {loadingSystems ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="bg-slate-900 border border-slate-800 rounded-xl h-[400px] animate-pulse"></div>
+              ))
+            ) : featuredSystems.length > 0 ? (
+               featuredSystems.map((system) => (
               <motion.div 
-                key={i} 
-                variants={itemVariants}
+                key={system.id} 
+                initial={{ y: 20, opacity: 0 }}
+                whileInView={{ y: 0, opacity: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
                 className="bg-slate-950 border border-slate-800 rounded-xl overflow-hidden hover:border-blue-500/50 transition-colors flex flex-col"
               >
                 <div className="p-6 pb-0 flex-1">
                   <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs font-semibold text-slate-500 bg-slate-900 px-2 py-1 rounded">{system.category}</span>
+                    <span className="text-xs font-semibold text-slate-500 bg-slate-900 px-2 py-1 rounded">{system.category || "Sistem"}</span>
                     {system.badge && (
                       <span className="text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">{system.badge}</span>
                     )}
@@ -189,13 +177,15 @@ export const LandingPage = () => {
                   <div className="flex items-center justify-between mb-4">
                     <span className="text-2xl font-bold text-white">{system.price} ₺</span>
                   </div>
-                  <button className="w-full py-2.5 rounded-md bg-white text-slate-900 font-bold hover:bg-slate-200 transition-colors text-sm">
+                  <Link to="/builder" className="w-full flex justify-center py-2.5 rounded-md bg-white text-slate-900 font-bold hover:bg-slate-200 transition-colors text-sm">
                     İncele ve Özelleştir
-                  </button>
+                  </Link>
                 </div>
               </motion.div>
-            ))}
-          </motion.div>
+            ))) : (
+               <div className="col-span-full py-12 text-center text-slate-500">Hazır sistemler yakında eklenecektir.</div>
+            )}
+          </div>
         </div>
       </section>
 
