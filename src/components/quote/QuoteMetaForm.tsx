@@ -7,6 +7,8 @@ import { Card } from "../ui/Card";
 const statuses: QuoteStatus[] = [
   "Yeni Teklif",
   "Onay Bekliyor",
+  "Onaylandı",
+  "Reddedildi",
   "Ödeme Alındı",
   "Hazırlanıyor",
   "Kargolandı",

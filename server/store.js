@@ -1313,12 +1313,25 @@ export async function listQuotesForUser(user) {
 
 export async function saveQuoteForUser(user, quote) {
   const now = new Date().toISOString();
-  const payload = {
+  let payload = {
     ...quote,
     ownerUserId: user.id,
     updatedAt: now,
     createdAt: quote.createdAt || now,
   };
+
+  // NEW: Manual stock deduction if admin sets status to Onaylandı / Tamamlandı
+  if (
+    (payload.status === "Onaylandı" || payload.status === "Tamamlandı") &&
+    !payload.stockDeducted
+  ) {
+    try {
+      await deductStockForQuote(payload);
+      payload.stockDeducted = true;
+    } catch (err) {
+      console.error("Manual stock deduction failed:", err);
+    }
+  }
 
   if (user.companyId) {
     await assertOwnedByCompanyOrThrow("Quote", payload.id, user.companyId, "Bu teklif başka bir firmaya ait olduğu için güncellenemez.");
@@ -1461,7 +1474,10 @@ export async function updatePublicQuoteStatus(id, status, customerNote = "") {
     
     // Suggestion 5: Deduct stock from catalog
     try {
-      await deductStockForQuote(quote);
+      if (!quote.stockDeducted) {
+        await deductStockForQuote(quote);
+        quote.stockDeducted = true;
+      }
     } catch (err) {
       console.error("Stock deduction failed:", err);
       // We still update the status even if stock deduction fails, but we log it
