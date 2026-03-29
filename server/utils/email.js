@@ -86,4 +86,37 @@ export const emailTemplates = {
       </div>
     `,
   }),
+  adminNewQuote: (quoteNo, customerName) => ({
+    subject: `Yeni Teklif Talebi: ${quoteNo} 🚀`,
+    html: `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+        <h2 style="color: #2563eb;">Yeni Web Talebi!</h2>
+        <p>Sisteminiz üzerinden yeni bir PC toplama talebi oluşturuldu.</p>
+        <div style="margin: 20px 0; padding: 15px; border-left: 4px solid #2563eb; background: #f8fafc;">
+          <strong>Teklif No:</strong> ${quoteNo}<br>
+          <strong>Müşteri:</strong> ${customerName}
+        </div>
+        <p>Detayları incelemek ve fiyat çalışması yapmak için admin panelini ziyaret edebilirsiniz.</p>
+        <div style="margin-top: 30px;">
+          <a href="https://www.pcteklif.com.tr/login" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Admin Paneline Git</a>
+        </div>
+      </div>
+    `,
+  }),
+  adminStatusUpdate: (quoteNo, customerName, status) => ({
+    subject: `Müşteri Aksiyonu: ${quoteNo} (${status}) 🔔`,
+    html: `
+      <div style="font-family: sans-serif; color: #333; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eee;">
+        <h2 style="color: #2563eb;">Teklif Durumu Güncellendi</h2>
+        <p><b>${customerName}</b> isimli müşteri bir teklif üzerinde aksiyon aldı.</p>
+        <div style="margin: 20px 0; padding: 15px; border-left: 4px solid #2563eb; background: #f8fafc;">
+          <strong>Teklif No:</strong> ${quoteNo}<br>
+          <strong>Yeni Durum:</strong> <span style="color: #1d4ed8; font-weight: bold;">${status}</span>
+        </div>
+        <div style="margin-top: 30px;">
+          <a href="https://www.pcteklif.com.tr/login" style="display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Detayları Gör</a>
+        </div>
+      </div>
+    `,
+  }),
 };

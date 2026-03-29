@@ -1,6 +1,8 @@
 import { randomUUID, scryptSync, timingSafeEqual } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
+import { sendEmail, emailTemplates } from "./utils/email.js";
+
 const ownerScopedTables = new Set([
   "Quote",
   "AddressBookEntry",
@@ -1348,6 +1350,22 @@ export async function saveQuoteForUser(user, quote) {
         WHERE "id" = ${payload.id}
       `
     );
+
+    // Notify Admin on significant status changes
+    try {
+      if (
+        payload.status !== quote.status &&
+        ["Onaylandı", "Tamamlandı", "Kargolandı"].includes(payload.status)
+      ) {
+        const org = await getOrganizationForUser(user);
+        if (org.email) {
+          const template = emailTemplates.adminStatusUpdate(payload.quoteNo, payload.customerName, payload.status);
+          await sendEmail({ to: org.email, ...template });
+        }
+      }
+    } catch (e) {
+      console.error("Admin status notification failed:", e);
+    }
   } else {
     await prisma.$executeRaw(
       Prisma.sql`
@@ -1430,6 +1448,17 @@ export async function createQuoteFromBuilder(user, selections) {
     `
   );
 
+  // Notify Admin about new web quote
+  try {
+    const org = await getOrganizationForUser(user);
+    if (org.email) {
+      const template = emailTemplates.adminNewQuote(quote.quoteNo, quote.customerName);
+      await sendEmail({ to: org.email, ...template });
+    }
+  } catch (e) {
+    console.error("Admin new quote notification failed:", e);
+  }
+
   return quote;
 }
 
@@ -1499,6 +1528,19 @@ export async function updatePublicQuoteStatus(id, status, customerNote = "") {
       message: `"${quote.quoteNo}" numaralı teklif müşteri tarafından ${status.toLowerCase()} olarak işaretlendi.`,
       quoteId: id
     });
+
+    // Notify Admin via Email
+    try {
+      const orgRows = await prisma.$queryRaw(
+        Prisma.sql`SELECT o."email" FROM "Organization" o JOIN "User" u ON u."companyId" = o."id" WHERE u."id" = ${userRows[0].ownerUserId} LIMIT 1`
+      );
+      if (orgRows[0]?.email) {
+        const template = emailTemplates.adminStatusUpdate(quote.quoteNo, quote.customerName, status);
+        await sendEmail({ to: orgRows[0].email, ...template });
+      }
+    } catch (e) {
+      console.error("Admin public status email failed:", e);
+    }
   }
   
   return quote;
