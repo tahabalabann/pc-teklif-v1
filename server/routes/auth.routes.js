@@ -3,11 +3,11 @@ import {
   authenticateUser, 
   createSessionForUser, 
   deleteSession, 
-  createUser,
-  hashPassword,
   createPasswordResetToken,
-  resetPasswordWithToken
-} from "../store.js";
+  resetPasswordWithToken,
+  hashPassword
+} from "../services/authService.js";
+import { createUser } from "../services/userService.js";
 import { sendEmail, emailTemplates } from "../utils/email.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { prisma } from "../db.js";

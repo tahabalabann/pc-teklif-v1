@@ -1,9 +1,8 @@
 import express from "express";
 import { eventBus } from "../utils/EventBus.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
-import { listNotificationsForUser, markAllNotificationsReadForUser } from "../store.js";
-
-import { getSessionUser } from "../store.js";
+import { listNotificationsForUser, markAllNotificationsReadForUser } from "../services/notificationService.js";
+import { getSessionUser } from "../services/authService.js";
 
 const router = express.Router();
 

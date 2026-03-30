@@ -1,12 +1,14 @@
 import { Router } from "express";
 import {
   getDashboardSummaryForUser,
-  listUsersForDashboard,
   getCompanyReportsForUser,
-  listAuditLogsForUser,
+} from "../services/reportService.js";
+import { listUsersForDashboard } from "../services/userService.js";
+import { listAuditLogsForUser } from "../services/auditService.js";
+import {
   listWalletLedgerForUser,
   createManualWalletAdjustment
-} from "../store.js";
+} from "../services/walletService.js";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware.js";
 
 export const reportsRouter = Router();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getOrganizationForUser, updateOrganizationForUser } from "../store.js";
+import { getOrganizationForUser, updateOrganizationForUser } from "../services/organizationService.js";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware.js";
 
 export const settingsRouter = Router();

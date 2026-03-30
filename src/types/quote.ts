@@ -290,3 +290,14 @@ export interface CompanyReportSummary {
   userCount: number;
   active: boolean;
 }
+
+export interface FeaturedSystem {
+  id: string;
+  name: string;
+  category: string;
+  price: string;
+  specs: string; // JSON string of string[]
+  badge?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

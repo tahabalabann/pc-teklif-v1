@@ -2,11 +2,11 @@ import { Router } from "express";
 import {
   listOrganizationsForPlatformAdmin,
   createOrganizationWithAdmin,
-  listUsersForOrganizationAsPlatformAdmin,
   updateOrganizationAsPlatformAdmin,
   deleteOrganizationAsPlatformAdmin,
   toggleOrganizationActiveAsPlatformAdmin
-} from "../store.js";
+} from "../services/organizationService.js";
+import { listUsersForOrganizationAsPlatformAdmin } from "../services/userService.js";
 import { requireAuth, requirePlatformAdmin } from "../middlewares/auth.middleware.js";
 
 export const platformRouter = Router();

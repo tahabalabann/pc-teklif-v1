@@ -5,7 +5,7 @@ import {
   createDepositRequestForUser,
   approveDepositRequestForUser,
   rejectDepositRequestForUser
-} from "../store.js";
+} from "../services/walletService.js";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware.js";
 import { eventBus } from "../utils/EventBus.js";
 

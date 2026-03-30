@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./db.js";
-import { hashPassword } from "./store.js";
+import { hashPassword } from "./services/authService.js";
 
 async function ensureColumn(tableName, columnName, columnType, defaultValue) {
   const result = await prisma.$queryRawUnsafe(

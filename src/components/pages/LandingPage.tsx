@@ -11,17 +11,18 @@ import {
   ClockIcon
 } from "@heroicons/react/24/outline";
 
+import { storefrontApi } from "../../utils/api";
+
 export const LandingPage = () => {
   const [featuredSystems, setFeaturedSystems] = useState<FrontendFeaturedSystem[]>([]);
   const [loadingSystems, setLoadingSystems] = useState(true);
 
   useEffect(() => {
-    fetch("/api/public/storefront/featured-systems")
-      .then(res => res.json())
+    storefrontApi.listPublic()
       .then(data => {
-         const parsed = (data.systems || []).map((s: any) => ({
+         const parsed = (data || []).map((s: any) => ({
            ...s,
-           specs: JSON.parse(s.specs || "[]")
+           specs: typeof s.specs === 'string' ? JSON.parse(s.specs || "[]") : s.specs
          }));
          setFeaturedSystems(parsed);
       })

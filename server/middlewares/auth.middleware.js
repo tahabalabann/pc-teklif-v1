@@ -1,4 +1,4 @@
-import { getSessionUser } from "../store.js";
+import { getSessionUser } from "../services/authService.js";
 
 export function requireAuth(req, res, next) {
   void (async () => {

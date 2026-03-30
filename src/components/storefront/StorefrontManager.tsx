@@ -5,6 +5,8 @@ import { Card } from "../ui/Card";
 import type { FrontendFeaturedSystem } from "../../types/storefront";
 import toast from "react-hot-toast";
 
+import { storefrontApi } from "../../utils/api";
+
 export function StorefrontManager() {
   const [systems, setSystems] = useState<FrontendFeaturedSystem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,20 +21,15 @@ export function StorefrontManager() {
 
   const loadSystems = async () => {
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch("/api/storefront/featured-systems", {
-         headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error("Makine listesi alınamadı");
-      
-      const data = await res.json();
-      const parsedSystems = data.systems.map((s: any) => ({
+      setLoading(true);
+      const data = await storefrontApi.list();
+      const parsedSystems = data.map((s: any) => ({
         ...s,
-        specs: JSON.parse(s.specs || "[]")
+        specs: typeof s.specs === 'string' ? JSON.parse(s.specs || "[]") : s.specs
       }));
       setSystems(parsedSystems);
-    } catch (err) {
-      toast.error("Vitrin sistemleri yüklenemedi.");
+    } catch (err: any) {
+      toast.error(err.message || "Vitrin sistemleri yüklenemedi.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -50,7 +47,6 @@ export function StorefrontManager() {
     }
 
     try {
-      const token = localStorage.getItem("auth_token");
       const specsArray = formData.specsText.split(",").map(s => s.trim()).filter(Boolean);
       const payload = {
         name: formData.name,
@@ -60,23 +56,10 @@ export function StorefrontManager() {
         specs: specsArray
       };
 
-      const url = editingId 
-        ? `/api/storefront/featured-systems/${editingId}` 
-        : `/api/storefront/featured-systems`;
-      const method = editingId ? "PUT" : "POST";
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.error || "Kayıt işlemi başarısız");
+      if (editingId) {
+        await storefrontApi.update(editingId, payload as any);
+      } else {
+        await storefrontApi.create(payload as any);
       }
 
       toast.success("Sistem vitrine başarıyla kaydedildi.");
@@ -93,17 +76,11 @@ export function StorefrontManager() {
     if (!confirm(`${name} isimli sistemi vitrinden silmek istediğinize emin misiniz?`)) return;
     
     try {
-      const token = localStorage.getItem("auth_token");
-      const res = await fetch(`/api/storefront/featured-systems/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-
-      if (!res.ok) throw new Error("Silme başarısız");
+      await storefrontApi.delete(id);
       toast.success("Sistem silindi.");
       await loadSystems();
-    } catch (err) {
-      toast.error("Bir hata oluştu.");
+    } catch (err: any) {
+      toast.error(err.message || "Bir hata oluştu.");
       console.error(err);
     }
   };

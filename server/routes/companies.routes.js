@@ -3,7 +3,7 @@ import {
   listCompaniesForUser,
   saveCompanyForUser,
   deleteCompanyForUser
-} from "../store.js";
+} from "../services/companyService.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 export const companiesRouter = Router();

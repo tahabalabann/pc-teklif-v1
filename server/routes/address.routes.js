@@ -6,7 +6,7 @@ import {
   listSenderAddressBookForUser,
   saveSenderAddressBookEntryForUser,
   deleteSenderAddressBookEntryForUser
-} from "../store.js";
+} from "../services/addressService.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 
 export const addressRouter = Router();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { listUsers, createUser, deleteUserForAdmin, toggleUserActiveForAdmin } from "../store.js";
+import { listUsers, createUser, deleteUserForAdmin, toggleUserActiveForAdmin } from "../services/userService.js";
 import { requireAuth, requireAdmin } from "../middlewares/auth.middleware.js";
 
 export const usersRouter = Router();

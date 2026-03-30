@@ -11,7 +11,7 @@ import {
   saveProductForUser,
   deleteProductForUser,
   createQuoteFromBuilder
-} from "../store.js";
+} from "../services/quoteService.js";
 import { requireAuth } from "../middlewares/auth.middleware.js";
 import { eventBus } from "../utils/EventBus.js";
 import { sendEmail, emailTemplates } from "../utils/email.js";

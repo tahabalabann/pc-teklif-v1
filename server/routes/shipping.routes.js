@@ -3,9 +3,9 @@ import {
   listShipmentRecordsForUser,
   saveShipmentRecordForUser,
   deleteShipmentRecordForUser,
-  consumeUserBalance,
   createShipmentAuditLogForUser
-} from "../store.js";
+} from "../services/shippingService.js";
+import { consumeUserBalance } from "../services/walletService.js";
 import {
   normalizePhone,
   normalizeTurkishLocationName,

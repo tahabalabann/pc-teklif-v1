@@ -16,6 +16,8 @@ import type {
   AuditLogEntry,
   OrganizationSummary,
   WalletLedgerEntry,
+  FeaturedSystem,
+  GeliverShipment,
 } from "../types/quote";
 
 const SESSION_STORAGE_KEY = "pc-teklif:sessionToken";
@@ -164,6 +166,11 @@ export const geliverApi = {
         `/api/geliver/locations/neighborhoods?cityCode=${encodeURIComponent(cityCode)}&districtCode=${encodeURIComponent(districtCode)}`,
       )
     ).neighborhoods,
+  createTransaction: (quote: Quote) =>
+    apiRequest<{ shipment: GeliverShipment }>("/api/geliver/create-transaction", {
+      method: "POST",
+      body: JSON.stringify({ quote }),
+    }),
 };
 
 export const addressBookApi = {
@@ -351,4 +358,26 @@ export const reportsApi = {
 
 export const ratesApi = {
   getRates: async () => (await apiRequest<{ rates: { TRY: number; USD: number; EUR: number; GBP: number } }>("/api/rates")).rates,
+};
+
+export const storefrontApi = {
+  list: async () => (await apiRequest<{ systems: FeaturedSystem[] }>("/api/storefront/featured-systems")).systems,
+  listPublic: async () => (await apiRequest<{ systems: FeaturedSystem[] }>("/api/public/storefront/featured-systems")).systems,
+  create: async (payload: Partial<FeaturedSystem>) =>
+    (
+      await apiRequest<{ system: FeaturedSystem }>("/api/storefront/featured-systems", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      })
+    ).system,
+  update: async (id: string, payload: Partial<FeaturedSystem>) =>
+    (
+      await apiRequest<{ system: FeaturedSystem }>(`/api/storefront/featured-systems/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      })
+    ).system,
+  delete: async (id: string) => {
+    await apiRequest<{ ok: true }>(`/api/storefront/featured-systems/${id}`, { method: "DELETE" });
+  },
 };

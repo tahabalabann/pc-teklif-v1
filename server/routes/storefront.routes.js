@@ -1,18 +1,19 @@
 import { Router } from "express";
-import crypto from "crypto";
-import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "../middlewares/auth.middleware.js";
+import { 
+  listFeaturedSystems,
+  createFeaturedSystem,
+  updateFeaturedSystem,
+  deleteFeaturedSystem
+} from "../services/storefrontService.js";
 
-const prisma = new PrismaClient();
 export const storefrontRouter = Router();
 export const publicStorefrontRouter = Router();
 
 // PUBLIC: Get all featured systems
 publicStorefrontRouter.get("/featured-systems", async (req, res) => {
   try {
-    const systems = await prisma.featuredSystem.findMany({
-      orderBy: { createdAt: "asc" }
-    });
+    const systems = await listFeaturedSystems();
     return res.json({ systems });
   } catch (error) {
     console.error("Error fetching featured systems:", error);
@@ -33,9 +34,7 @@ const requireAdmin = (req, res, next) => {
 
 storefrontRouter.get("/featured-systems", requireAdmin, async (req, res) => {
   try {
-    const systems = await prisma.featuredSystem.findMany({
-      orderBy: { createdAt: "asc" }
-    });
+    const systems = await listFeaturedSystems();
     return res.json({ systems });
   } catch (error) {
     return res.status(500).json({ error: "Sistemler yüklenemedi." });
@@ -49,20 +48,7 @@ storefrontRouter.post("/featured-systems", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "Lütfen gerekli alanları doldurun." });
     }
 
-    const now = new Date().toISOString();
-    const system = await prisma.featuredSystem.create({
-      data: {
-        id: crypto.randomUUID(),
-        name,
-        category: category || "",
-        price: price.toString(),
-        specs: JSON.stringify(specs), // Expecting specs to be an array of strings
-        badge: badge || null,
-        createdAt: now,
-        updatedAt: now
-      }
-    });
-
+    const system = await createFeaturedSystem({ name, category, price, specs, badge });
     return res.status(201).json({ system });
   } catch (error) {
     console.error("Failed to create featured system:", error);
@@ -72,20 +58,7 @@ storefrontRouter.post("/featured-systems", requireAdmin, async (req, res) => {
 
 storefrontRouter.put("/featured-systems/:id", requireAdmin, async (req, res) => {
   try {
-    const { name, category, price, specs, badge } = req.body;
-    
-    const system = await prisma.featuredSystem.update({
-      where: { id: req.params.id },
-      data: {
-        name,
-        category,
-        price: price?.toString(),
-        specs: specs ? JSON.stringify(specs) : undefined,
-        badge: badge !== undefined ? badge : null,
-        updatedAt: new Date().toISOString()
-      }
-    });
-
+    const system = await updateFeaturedSystem(req.params.id, req.body);
     return res.json({ system });
   } catch (error) {
     console.error("Failed to update featured system:", error);
@@ -95,9 +68,7 @@ storefrontRouter.put("/featured-systems/:id", requireAdmin, async (req, res) => 
 
 storefrontRouter.delete("/featured-systems/:id", requireAdmin, async (req, res) => {
   try {
-    await prisma.featuredSystem.delete({
-      where: { id: req.params.id }
-    });
+    await deleteFeaturedSystem(req.params.id);
     return res.json({ ok: true });
   } catch (error) {
     console.error("Failed to delete featured system:", error);

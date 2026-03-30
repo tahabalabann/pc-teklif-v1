@@ -29,17 +29,6 @@ interface ShipmentResponse {
   shipmentPrice?: number;
 }
 
-function safeJsonParse(text: string) {
-  if (!text) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(text) as { shipment?: ShipmentResponse; error?: string; message?: string };
-  } catch {
-    return { message: text };
-  }
-}
 
 export function GeliverShippingPanel({
   quote,
@@ -293,21 +282,7 @@ export function GeliverShippingPanel({
     setError("");
 
     try {
-      const token = window.localStorage.getItem("pc-teklif:sessionToken") || "";
-      const response = await fetch("/api/geliver/create-transaction", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ quote }),
-      });
-
-      const payload = safeJsonParse(await response.text());
-
-      if (!response.ok || !payload.shipment) {
-        throw new Error(payload.error || payload.message || "Geliver gönderisi oluşturulamadı.");
-      }
+      const payload = await geliverApi.createTransaction(quote);
 
       const nextQuote = {
         ...quote,
