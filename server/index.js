@@ -75,11 +75,13 @@ app.use("/api/rates", ratesRouter);
 import { errorHandler } from "./middlewares/errorHandler.middleware.js";
 app.use(errorHandler);
 
-// Bootstrap DB
-await ensureSeedAdmin();
-
-const server = app.listen(port, () => {
+const server = app.listen(port, async () => {
   console.log(`Team server running on http://localhost:${port}`);
+  try {
+    await ensureSeedAdmin();
+  } catch (err) {
+    console.error("Bootstrap seed failed:", err);
+  }
 });
 
 process.on("SIGINT", async () => {
