@@ -75,6 +75,9 @@ app.use("/api/rates", ratesRouter);
 import { errorHandler } from "./middlewares/errorHandler.middleware.js";
 app.use(errorHandler);
 
+// Bootstrap DB
+await ensureSeedAdmin();
+
 const server = app.listen(port, () => {
   console.log(`Team server running on http://localhost:${port}`);
 });
