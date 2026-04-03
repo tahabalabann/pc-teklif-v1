@@ -87,6 +87,7 @@ export async function createSessionForUser(user) {
 
   await prisma.$executeRaw(
     Prisma.sql`
+      INSERT INTO "Session" ("token", "userId", "createdAt", "lastSeenAt", "expiresAt")
       VALUES (${token}, ${user.id}, ${now}, ${now}, ${expiresAt})
     `,
   );
