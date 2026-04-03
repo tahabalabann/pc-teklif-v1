@@ -5,6 +5,7 @@ export interface FeaturedSystem {
   price: string;
   specs: string; // JSON string from DB, will be parsed later
   badge: string | null;
+  condition: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -7,7 +7,7 @@ export async function listFeaturedSystems() {
   });
 }
 
-export async function createFeaturedSystem({ name, category, price, specs, badge }) {
+export async function createFeaturedSystem({ name, category, price, specs, badge, condition }) {
   const now = new Date().toISOString();
   return await prisma.featuredSystem.create({
     data: {
@@ -17,13 +17,14 @@ export async function createFeaturedSystem({ name, category, price, specs, badge
       price: price.toString(),
       specs: JSON.stringify(specs), 
       badge: badge || null,
+      condition: condition || "new",
       createdAt: now,
       updatedAt: now
     }
   });
 }
 
-export async function updateFeaturedSystem(id, { name, category, price, specs, badge }) {
+export async function updateFeaturedSystem(id, { name, category, price, specs, badge, condition }) {
   return await prisma.featuredSystem.update({
     where: { id },
     data: {
@@ -32,6 +33,7 @@ export async function updateFeaturedSystem(id, { name, category, price, specs, b
       price: price?.toString(),
       specs: specs ? JSON.stringify(specs) : undefined,
       badge: badge !== undefined ? badge : null,
+      condition: condition !== undefined ? condition : undefined,
       updatedAt: new Date().toISOString()
     }
   });

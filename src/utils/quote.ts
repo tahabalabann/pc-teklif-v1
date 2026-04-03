@@ -106,7 +106,7 @@ export const createEmptyQuote = (): Quote => {
     quoteNo: nextQuoteNumber(),
     status: DEFAULT_STATUS,
     notes: "",
-    warrantyInfo: "Test edildi, temiz ve sorunsuz çalışmaktadır.",
+    warrantyInfo: "Sıfır (0) ürünler için 2 yıl birebir değişim garantisi mevcuttur. 2. el ürünler tarafımızca test edilmiş, temiz ve sorunsuz çalışmaktadır.",
     sellerInfo: DEFAULT_SELLER_INFO,
     companyName: DEFAULT_COMPANY_NAME,
     companyLogo: "",

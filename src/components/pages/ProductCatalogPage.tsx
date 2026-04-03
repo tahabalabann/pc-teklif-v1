@@ -27,6 +27,7 @@ export function ProductCatalogPage() {
     imageUrl: "",
     stockCount: "",
     minStockLevel: "0",
+    condition: "new",
   });
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -58,6 +59,7 @@ export function ProductCatalogPage() {
       imageUrl: "",
       stockCount: "",
       minStockLevel: "0",
+      condition: "new",
     });
     setIsModalOpen(true);
   };
@@ -73,6 +75,7 @@ export function ProductCatalogPage() {
       imageUrl: product.imageUrl || "",
       stockCount: String(product.stockCount ?? ""),
       minStockLevel: String(product.minStockLevel ?? "0"),
+      condition: product.condition || "new",
     });
     setIsModalOpen(true);
   };
@@ -106,6 +109,7 @@ export function ProductCatalogPage() {
         imageUrl: formData.imageUrl,
         stockCount: formData.stockCount === "" ? undefined : Number(formData.stockCount),
         minStockLevel: Number(formData.minStockLevel || 0),
+        condition: formData.condition as "new" | "used",
       };
       const saved = await productsApi.save(payload);
       if (editingId) {
@@ -238,7 +242,12 @@ export function ProductCatalogPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-ink-900 font-medium">{item.name}</div>
-                      {item.description && <div className="text-ink-500 text-xs mt-1">{item.description}</div>}
+                      <div className="flex gap-2 mt-1">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${item.condition === 'used' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                          {item.condition === 'used' ? '2. EL' : 'SIFIR'}
+                        </span>
+                        {item.description && <div className="text-ink-500 text-xs">{item.description}</div>}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="text-ink-900 font-semibold">{formatCurrency(item.salePrice)}</div>
@@ -378,6 +387,17 @@ export function ProductCatalogPage() {
                 />
               </label>
             </div>
+            <label className="block">
+              <span className="mb-2 block text-sm font-medium">Ürün Durumu</span>
+              <select
+                className="field"
+                value={formData.condition}
+                onChange={(e) => setFormData({ ...formData, condition: e.target.value })}
+              >
+                <option value="new">Sıfır (Yeni)</option>
+                <option value="used">2. El (Kullanılmış)</option>
+              </select>
+            </label>
           </div>
           <div className="mt-8 flex justify-end gap-3">
             <Button onClick={() => setIsModalOpen(false)} type="button" variant="ghost" disabled={saving}>

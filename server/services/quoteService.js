@@ -140,7 +140,8 @@ export async function createQuoteFromBuilder(user, selections) {
       purchaseCurrency: data.purchaseCurrency || "USD",
       salePrice: Number(data.salePrice || 0),
       saleCurrency: data.saleCurrency || "USD",
-      imageUrl: data.imageUrl || ""
+      imageUrl: data.imageUrl || "",
+      condition: data.condition || "new"
     };
   });
 

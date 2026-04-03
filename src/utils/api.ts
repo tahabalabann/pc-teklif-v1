@@ -211,6 +211,7 @@ export interface CatalogProduct {
   imageUrl?: string;
   stockCount?: number;
   minStockLevel?: number;
+  condition?: "new" | "used";
   createdAt: string;
   updatedAt: string;
 }

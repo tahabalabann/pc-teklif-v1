@@ -16,6 +16,7 @@ export function StorefrontManager() {
     category: "",
     price: "",
     badge: "",
+    condition: "new",
     specsText: "" // Comma separated
   });
 
@@ -53,6 +54,7 @@ export function StorefrontManager() {
         category: formData.category,
         price: formData.price,
         badge: formData.badge || null,
+        condition: formData.condition,
         specs: specsArray
       };
 
@@ -63,7 +65,7 @@ export function StorefrontManager() {
       }
 
       toast.success("Sistem vitrine başarıyla kaydedildi.");
-      setFormData({ name: "", category: "", price: "", badge: "", specsText: "" });
+      setFormData({ name: "", category: "", price: "", badge: "", condition: "new", specsText: "" });
       setEditingId(null);
       await loadSystems();
     } catch (err: any) {
@@ -92,6 +94,7 @@ export function StorefrontManager() {
       category: system.category,
       price: system.price,
       badge: system.badge || "",
+      condition: system.condition || "new",
       specsText: system.specs.join(", ")
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -99,7 +102,7 @@ export function StorefrontManager() {
 
   const handleCancel = () => {
     setEditingId(null);
-    setFormData({ name: "", category: "", price: "", badge: "", specsText: "" });
+    setFormData({ name: "", category: "", price: "", badge: "", condition: "new", specsText: "" });
   };
 
   return (
@@ -156,6 +159,17 @@ export function StorefrontManager() {
                 onChange={e => setFormData({ ...formData, badge: e.target.value })}
               />
             </div>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-ink-900">Durum</label>
+              <select
+                className="field"
+                value={formData.condition}
+                onChange={e => setFormData({ ...formData, condition: e.target.value })}
+              >
+                <option value="new">Sıfır</option>
+                <option value="used">2. El</option>
+              </select>
+            </div>
           </div>
           
           <div className="mt-4">
@@ -205,6 +219,9 @@ export function StorefrontManager() {
                   <td className="px-6 py-4 font-medium text-ink-900">
                     {system.name}
                     {system.badge && <span className="ml-2 rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-700">{system.badge}</span>}
+                    <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${system.condition === 'used' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                      {system.condition === 'used' ? '2. El' : 'Sıfır'}
+                    </span>
                   </td>
                   <td className="px-6 py-4">{system.price} ₺</td>
                   <td className="px-6 py-4 hidden md:table-cell">

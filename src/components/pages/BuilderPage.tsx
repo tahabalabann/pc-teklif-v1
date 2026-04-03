@@ -201,6 +201,11 @@ export const BuilderPage = () => {
                           )}
                         </div>
                         <h3 className="font-bold mb-1 line-clamp-1">{product.name}</h3>
+                        <div className="flex gap-2 mb-2">
+                          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-tighter ${product.condition === 'used' ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                            {product.condition === 'used' ? '2. El' : 'Sıfır'}
+                          </span>
+                        </div>
                         <p className="text-xs text-slate-500 line-clamp-2 mb-4 h-8">{product.description}</p>
                         
                         <div className="flex items-center justify-between mt-auto">

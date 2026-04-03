@@ -96,8 +96,8 @@ export const LandingPage = () => {
               <div className="flex items-center gap-3">
                 <ShieldCheckIcon className="w-6 h-6 text-slate-500" />
                 <div className="text-sm">
-                  <p className="font-semibold text-white">2 Yıl Garanti</p>
-                  <p className="text-slate-500">Birebir Değişim</p>
+                  <p className="font-semibold text-white">Sıfır Ürünlerde 2 Yıl Garanti</p>
+                  <p className="text-slate-500">Birebir Değişim Garantisi*</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -162,6 +162,9 @@ export const LandingPage = () => {
                     {system.badge && (
                       <span className="text-xs font-bold text-white bg-blue-600 px-2 py-1 rounded">{system.badge}</span>
                     )}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${system.condition === 'used' ? 'bg-amber-500/20 text-amber-500' : 'bg-emerald-500/20 text-emerald-400'}`}>
+                      {system.condition === 'used' ? '2. EL' : 'SIFIR'}
+                    </span>
                   </div>
                   <h3 className="text-xl font-bold mb-4 text-white">{system.name}</h3>
                   <ul className="space-y-3 mb-6">
@@ -171,6 +174,12 @@ export const LandingPage = () => {
                         {spec}
                       </li>
                     ))}
+                    {system.condition !== 'used' && (
+                      <li className="flex items-center gap-3 text-sm text-emerald-400 font-medium">
+                        <ShieldCheckIcon className="w-4 h-4" />
+                        2 Yıl Birebir Değişim Garantisi
+                      </li>
+                    )}
                   </ul>
                 </div>
                 

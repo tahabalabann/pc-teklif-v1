@@ -176,6 +176,7 @@ model FeaturedSystem {
   price     String
   specs     String
   badge     String?
+  condition String  @default("new")
   createdAt String
   updatedAt String
 }

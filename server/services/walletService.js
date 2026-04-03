@@ -430,3 +430,51 @@ export async function getDepositRequestByIdForCompany(companyId, requestId) {
     updatedAt: row.updatedAt,
   };
 }
+
+export async function createManualWalletAdjustment(adminUser, { userId, amount, note }) {
+  const numericAmount = Number(amount || 0);
+  const targetUserId = userId;
+
+  return await prisma.$transaction(async (tx) => {
+    // Get target user to ensure they exist and get their companyId
+    const userRows = await tx.$queryRaw(
+      Prisma.sql`SELECT "companyId" FROM "User" WHERE "id" = ${targetUserId} LIMIT 1`
+    );
+    const targetUser = userRows[0];
+    if (!targetUser) throw new Error("Hedef kullanıcı bulunamadı.");
+
+    // Update balance
+    await tx.$executeRaw(
+      Prisma.sql`
+        UPDATE "User" 
+        SET "balance" = COALESCE("balance", 0) + ${numericAmount}
+        WHERE "id" = ${targetUserId}
+      `
+    );
+
+    const nextBalance = await getUserBalance(targetUserId, tx);
+
+    // Create ledger entry
+    await createWalletLedgerEntry({
+      userId: targetUserId,
+      companyId: targetUser.companyId || "",
+      type: "manual_adjustment",
+      amount: numericAmount,
+      balanceAfter: nextBalance,
+      note: String(note || "Yönetici tarafından manuel düzeltme."),
+      createdByUserId: adminUser.id
+    }, tx);
+
+    // Create Audit Log
+    await createAuditLog({
+      companyId: adminUser.companyId,
+      actorUserId: adminUser.id,
+      action: "manual_wallet_adjustment",
+      entityType: "user_wallet",
+      entityId: targetUserId,
+      message: `${adminUser.name}, ${targetUserId} ID'li kullanıcının bakiyesine ${numericAmount} TL manuel işlem yaptı.`
+    }, tx);
+
+    return nextBalance;
+  });
+}
