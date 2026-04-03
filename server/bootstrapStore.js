@@ -193,6 +193,25 @@ async function ensureSchema() {
       CONSTRAINT "ProductCatalogEntry_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
     );
   `);
+
+  await ensureColumn("ProductCatalogEntry", "condition", "TEXT", "'new'");
+
+  await prisma.$executeRawUnsafe(`
+    CREATE TABLE IF NOT EXISTS "FeaturedSystem" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "name" TEXT NOT NULL,
+      "description" TEXT NOT NULL,
+      "price" DOUBLE PRECISION NOT NULL,
+      "imageUrl" TEXT NOT NULL,
+      "specs" TEXT NOT NULL,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TEXT NOT NULL,
+      "updatedAt" TEXT NOT NULL
+    );
+  `);
+
+  await ensureColumn("FeaturedSystem", "condition", "TEXT", "'new'");
 }
 
 async function getOrCreateDefaultOrganization() {
